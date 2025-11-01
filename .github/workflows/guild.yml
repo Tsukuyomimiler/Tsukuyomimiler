@@ -1,65 +1,74 @@
-name: guild-workflow
+name: guild-workflow Workflow
 
 on:
-  schedule:
-    - cron: "0 0 * * *"   # Atualiza todo dia à meia-noite
   workflow_dispatch:
+    inputs:
+      usuario:
+        description: "Usuário do GitHub"
+        required: true
+        default: "ciconha"
+
+permissions:
+  contents: write
 
 jobs:
-  metrics:
+  gerar-cartao:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
-      - name: 📦 Gerar perfil lowlighter
-        uses: lowlighter/metrics@latest
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          user: lowlighter
-          config_timezone: America/Sao_Paulo
-          filename: github-metrics.svg
+      - name: 🧩 Checkout do repositório
+        uses: actions/checkout@v4
 
-          base: header, activity, community, repositories
-          plugin_isocalendar: yes
-          plugin_followup: yes
-          plugin_stars: yes
-          plugin_topics: yes
-          plugin_languages: yes
-          plugin_achievements: yes
-          plugin_contributors: yes
-          plugin_discussions: yes
-          plugin_contributions: yes
-
-          # 🖼️ Customização do cartão
-          plugin_languages_limit: 3
-          plugin_languages_ignored: html, css, shell, go, rust, php
-          plugin_languages_sections: most-used
-          plugin_languages_colors: "#f1e05a,#3572A5,#701516"
-          plugin_achievements_threshold: C
-          plugin_achievements_display: compact
-
-      - name: 🎨 Gerar Cartão da Guilda
+      - name: 📦 Instalar dependências
         run: |
-          mkdir -p guild
-          USER="lowlighter"
-          AVATAR=$(curl -s "https://api.github.com/users/$USER" | jq -r '.avatar_url')
+          sudo apt-get update
+          sudo apt-get install -y curl jq
+
+      - name: 🔍 Buscar dados do GitHub
+        id: fetch-data
+        run: |
+          USER="${{ github.event.inputs.usuario }}"
+
+          echo "🔍 Buscando dados de $USER..."
+          curl -s "https://api.github.com/users/$USER" > user.json
+          curl -s "https://api.github.com/users/$USER/repos?sort=stars&per_page=100" > repos.json
+          curl -s "https://api.github.com/users/$USER/events?per_page=100" > events.json
+
+          LOGIN=$(jq -r '.login' user.json)
+          AVATAR=$(jq -r '.avatar_url' user.json)
+          REPOS=$(jq -r '.public_repos' user.json)
+          FOLLOWERS=$(jq -r '.followers' user.json)
+          COMMITS=$(jq '[.[] | select(.type=="PushEvent")] | length' events.json)
+          PRS=$(jq '[.[] | select(.type=="PullRequestEvent")] | length' events.json)
+          ISSUES=$(jq '[.[] | select(.type=="IssuesEvent")] | length' events.json)
+
+          TOTAL_XP=$((REPOS * 50 + FOLLOWERS * 30 + COMMITS * 2 + PRS * 10 + ISSUES * 5))
+          LEVEL=$((TOTAL_XP / 1000 + 1))
+          XP_PERCENTAGE=$(( (TOTAL_XP % 1000) * 100 / 1000 ))
+
+          echo "login=$LOGIN" >> $GITHUB_OUTPUT
+          echo "avatar=$AVATAR" >> $GITHUB_OUTPUT
+          echo "total_xp=$TOTAL_XP" >> $GITHUB_OUTPUT
+          echo "level=$LEVEL" >> $GITHUB_OUTPUT
+          echo "xp_percentage=$XP_PERCENTAGE" >> $GITHUB_OUTPUT
+
+      - name: 🎨 Gerar Cartão SVG
+        run: |
+          mkdir -p cards
           DATE=$(date +'%d/%m/%Y')
-          cat <<EOF > guild/lowlighter-guild.svg
-<svg xmlns="http://www.w3.org/2000/svg" width="460" height="300">
-  <rect width="460" height="300" rx="15" fill="#fdf6e3" stroke="#8B4513" stroke-width="3"/>
-  <image href="${AVATAR}" x="20" y="40" width="90" height="90" clip-path="circle(45px at 45px 45px)"/>
-  <text x="130" y="70" font-size="20" font-weight="bold">lowlighter</text>
-  <text x="130" y="95" font-size="13">🎨 Arquiteto Frontend</text>
-  <text x="130" y="115" font-size="12">Freelancer / Independente</text>
-  <text x="230" y="270" text-anchor="middle" font-size="11" fill="#555">Gerado em ${DATE}</text>
-</svg>
-EOF
+
+          echo '<svg xmlns="http://www.w3.org/2000/svg" width="460" height="300">' > cards/ciconha.svg
+          echo '<rect width="460" height="300" rx="15" fill="beige" stroke="#8B4513" stroke-width="3"/>' >> cards/ciconha.svg
+          echo "<text x='130' y='60' font-size='20' font-weight='bold'>${{ steps.fetch-data.outputs.login }}</text>" >> cards/ciconha.svg
+          echo "<text x='130' y='80' font-size='12'>Nv. ${{ steps.fetch-data.outputs.level }} • 🎨 Arquiteto Frontend</text>" >> cards/ciconha.svg
+          echo "<text x='130' y='100' font-size='11'>FRONTEND • Tech Corp • N/A anos</text>" >> cards/ciconha.svg
+          echo "<text x='230' y='270' text-anchor='middle' font-size='11'>Gerado em ${DATE}</text>" >> cards/ciconha.svg
+          echo '</svg>' >> cards/ciconha.svg
 
       - name: 💾 Commit e Push
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add guild/
-          git commit -m "🧙 Cartão da Guilda gerado para lowlighter" || echo "Nada a commitar"
+          git add cards/
+          git commit -m "🧙‍♂️ Cartão da guilda gerado para ciconha" || echo "Nada para commitar"
           git push
