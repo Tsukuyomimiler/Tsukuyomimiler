@@ -205,4 +205,3 @@ EOF
           git add ciconha/*.svg || true
           git commit -m "🧨 CICONHA CHAOS CARD: gerar ${{ github.event.inputs.usuario }}" || echo "Nada a commitar"
           git push --follow-tags || echo "Push falhou (talvez sem mudanças)"
-
