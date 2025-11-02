@@ -1,7 +1,6 @@
-name: 🧨 CICONHA CHAOS CARD
+name: CICONHA CHAOS CARD
 
 on:
-  # manual run
   workflow_dispatch:
     inputs:
       usuario:
@@ -16,30 +15,30 @@ on:
         description: "Cargo atual (opcional)"
         required: false
         default: "Aventureiro de Código"
-  # opcional: comentário — mantenha ou remova se não quiser schedule
+  # opcional: ativa atualização semanal; comente/remova se não quiser
   schedule:
-    - cron: "0 3 * * 1" # semanal (segunda 03:00 UTC)
+    - cron: "0 3 * * 1"
 
 permissions:
   contents: write
 
 jobs:
   chaos-card:
-    name: 🧩 Gerar Chaos Card SVGs (CICONHA)
+    name: Gerar Chaos Card SVGs (CICONHA)
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🔄 Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           persist-credentials: true
 
-      - name: 🧰 Preparar ambiente
+      - name: Preparar ambiente
         run: |
           sudo apt-get update -y
           sudo apt-get install -y curl jq iconv
 
-      - name: 🔍 Coletar dados do GitHub (sanitize)
+      - name: Coletar dados do GitHub (sanitizado)
         id: collect
         run: |
           set -euo pipefail
@@ -47,20 +46,21 @@ jobs:
           USER="${{ github.event.inputs.usuario }}"
           TOKEN="${{ secrets.TSUKUYOMI_CICONHA || '' }}"
 
-          echo "🛰️ Coletando dados de: $USER"
+          echo "Coletando dados para: $USER"
 
-          AUTH=""
           if [ -n "$TOKEN" ]; then
-            AUTH="-H \"Authorization: token $TOKEN\""
+            curl -s -H "Authorization: token $TOKEN" "https://api.github.com/users/$USER" > user.json
+            curl -s -H "Authorization: token $TOKEN" "https://api.github.com/users/$USER/repos?per_page=100" > repos.json
+            # events pode falhar para alguns usuários — ignore erro
+            curl -s -H "Authorization: token $TOKEN" "https://api.github.com/users/$USER/events?per_page=100" > events.json || true
+          else
+            curl -s "https://api.github.com/users/$USER" > user.json
+            curl -s "https://api.github.com/users/$USER/repos?per_page=100" > repos.json
+            curl -s "https://api.github.com/users/$USER/events?per_page=100" > events.json || true
           fi
 
-          # buscar dados (usa eval para injetar AUTH corretamente)
-          eval "curl -s $AUTH https://api.github.com/users/$USER > user.json"
-          eval "curl -s $AUTH https://api.github.com/users/$USER/repos?per_page=100 > repos.json"
-          eval "curl -s $AUTH https://api.github.com/users/$USER/events?per_page=100 > events.json" || true
-
           sanitize() {
-            # remove quebras e caracteres problemáticos
+            # converte para UTF-8, remove quebras de linha e aspas problemáticas
             echo "$1" | iconv -c -t UTF-8//TRANSLIT | tr -d '\r\n' | sed 's/"/\\"/g'
           }
 
@@ -75,7 +75,6 @@ jobs:
           PRS=$(jq -r '[.[] | select(.type == "PullRequestEvent")] | length' events.json 2>/dev/null || echo 0)
           ISSUES=$(jq -r '[.[] | select(.type == "IssuesEvent")] | length' events.json 2>/dev/null || echo 0)
 
-          # linguagem principal (pode dar "" se não houver)
           LANG=$(jq -r '.[].language' repos.json 2>/dev/null | sort | uniq -c | sort -nr | head -1 | awk '{print $2}' || echo "")
           if [ -z "$LANG" ] || [ "$LANG" = "null" ]; then
             LANG="Desconhecida"
@@ -88,12 +87,11 @@ jobs:
           TOP1=$(jq -r 'sort_by(-.stargazers_count) | .[0] // {} | .name' repos.json 2>/dev/null || echo "")
           STARS_SUM=$(jq -r '[.[].stargazers_count] | add' repos.json 2>/dev/null || echo 0)
 
-          # sanitize strings
           NAME=$(sanitize "$RAW_NAME")
           BIO=$(sanitize "$RAW_BIO")
           TOP1_SAFE=$(sanitize "$TOP1")
 
-          # outputs (sem newlines)
+          # Saída segura para o Actions (sem quebras de linha)
           echo "login=${LOGIN}" >> "$GITHUB_OUTPUT"
           echo "name=${NAME}" >> "$GITHUB_OUTPUT"
           echo "bio=${BIO}" >> "$GITHUB_OUTPUT"
@@ -110,7 +108,7 @@ jobs:
           echo "level=${LEVEL}" >> "$GITHUB_OUTPUT"
           echo "xp_perc=${XP_PERC}" >> "$GITHUB_OUTPUT"
 
-      - name: 🎨 Gerar múltiplos SVGs Cyberpunk (6 variantes estilo japonês)
+      - name: Gerar múltiplos SVGs Cyberpunk (6 variantes) e salvar em ciconha/
         run: |
           set -euo pipefail
 
@@ -128,14 +126,13 @@ jobs:
           LANG="${{ steps.collect.outputs.lang }}"
           LEVEL="${{ steps.collect.outputs.level }}"
           XP_PERC="${{ steps.collect.outputs.xp_perc }}"
+          TOTAL_XP="${{ steps.collect.outputs.total_xp }}"
           DATE="$(date +'%Y-%m-%d')"
 
           mkdir -p ciconha
 
-          # função auxiliar para criar cada SVG com pequenas variações
           gen_svg() {
             idx="$1"
-            # variações visuais (cores/offsets) para cada cartão
             case "$idx" in
               1) ACC="#ff2e63"; GRA="#08d9d6"; BG="#07060a"; ;;
               2) ACC="#ffd166"; GRA="#06d6a0"; BG="#0f0b12"; ;;
@@ -148,28 +145,23 @@ jobs:
             BAR_TOTAL=160
             FILLED=$(( BAR_TOTAL * XP_PERC / 100 ))
 
-            # gerar arquivo
             cat > "ciconha/${USER}-${idx}.svg" <<EOF
 <svg xmlns="http://www.w3.org/2000/svg" width="620" height="360" viewBox="0 0 620 360">
+  <rect width="100%" height="100%" rx="20" fill="${BG}" />
+  <g opacity="0.06"><rect x="${idx}" y="${idx}" width="620" height="360" fill="#000" /></g>
+
   <defs>
     <clipPath id="clip${idx}"><circle cx="60" cy="60" r="44"/></clipPath>
   </defs>
-  <rect width="100%" height="100%" rx="20" fill="${BG}" />
-  <!-- decor -->
-  <g opacity="0.09"><rect x="${idx}" y="${idx}" width="620" height="360" fill="#000" /></g>
-  <!-- avatar area (se disponível, caso contrário ficará vazio) -->
+
   <g transform="translate(30,30)">
-    <rect x="-4" y="-4" width="128" height="128" rx="18" fill="none" stroke="${ACC}" stroke-width="2"/>
-    <image href="${AVATAR}" x="0" y="0" width="120" height="120" clip-path="url(#clip${idx})" preserveAspectRatio="xMidYMid slice"/>
+    <rect x="-4" y="-4" width="128" height="128" rx="18" fill="none" stroke="${ACC}" stroke-width="2" opacity="0.9"/>
+    <image href="${AVATAR}" x="0" y="0" width="120" height="120" clip-path="url(#clip${idx})" preserveAspectRatio="xMidYMid slice" />
   </g>
 
-  <!-- header text -->
   <text x="170" y="60" font-family="Noto Sans JP, 'Yu Gothic', sans-serif" font-size="28" fill="${ACC}" font-weight="700">${NAME}</text>
-  <text x="170" y="92" font-family="Noto Sans JP, 'Yu Gothic', sans-serif" font-size="14" fill="${GRA}">
-    ${EMPRESA} • ${CARGO} • ${LANG}
-  </text>
+  <text x="170" y="92" font-family="Noto Sans JP, 'Yu Gothic', sans-serif" font-size="14" fill="${GRA}">${EMPRESA} • ${CARGO} • ${LANG}</text>
 
-  <!-- badge row -->
   <g transform="translate(170,120)">
     <rect width="420" height="88" rx="12" fill="rgba(0,0,0,0.12)"/>
     <text x="18" y="28" font-family="monospace" font-size="12" fill="${ACC}">Repos: ${REPOS}</text>
@@ -178,42 +170,39 @@ jobs:
     <text x="220" y="48" font-family="monospace" font-size="12" fill="${GRA}">Top: ${TOP1}</text>
   </g>
 
-  <!-- bio / japanese vibe -->
   <g transform="translate(40,220)">
     <rect x="0" y="0" width="540" height="60" rx="8" fill="rgba(255,255,255,0.02)"/>
     <text x="12" y="22" font-family="Noto Sans JP, 'Yu Gothic', sans-serif" font-size="12" fill="#cccccc">${BIO}</text>
-    <text x="12" y="42" font-family="Noto Sans JP, 'Yu Gothic', sans-serif" font-size="11" fill="#aaaaaa">LV.${LEVEL} • XP ${TOTAL_XP:-0}</text>
+    <text x="12" y="42" font-family="Noto Sans JP, 'Yu Gothic', sans-serif" font-size="11" fill="#aaaaaa">LV.${LEVEL} • XP ${TOTAL_XP}</text>
   </g>
 
-  <!-- XP bar -->
   <rect x="200" y="300" width="${BAR_TOTAL}" height="12" rx="6" fill="#111" opacity="0.45"/>
   <rect x="200" y="300" width="${FILLED}" height="12" rx="6" fill="${ACC}"/>
   <text x="420" y="312" font-family="monospace" font-size="11" fill="${GRA}">${XP_PERC}%</text>
 
-  <!-- footer japanese / cyber labels -->
   <text x="520" y="40" font-family="monospace" font-size="12" fill="${ACC}" text-anchor="end">CYBER • NANO • CHAOS</text>
   <text x="520" y="340" font-family="monospace" font-size="10" fill="#888" text-anchor="end">更新: ${DATE} • CICONHA</text>
 </svg>
 EOF
           }
 
-          # gerar 6 variantes
           for i in 1 2 3 4 5 6; do
             gen_svg "$i"
           done
 
-          echo "✅ Gerados: $(ls -1 ciconha | wc -l) SVGs em ciconha/"
+          echo "Gerados $(ls -1 ciconha | wc -l) SVGs em ciconha/"
 
-      - name: 📁 Listar arquivos gerados
+      - name: Listar arquivos gerados
         run: |
           ls -la ciconha || true
 
-      - name: 💾 Commit & Push SVGs
+      - name: Commit & Push SVGs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add ciconha/*.svg
-          git commit -m "🧨 CICONHA CHAOS CARD: gerar ${ { github.event.inputs.usuario } }" || echo "Nada novo a commitar"
-          git push
+          git add ciconha/*.svg || true
+          git commit -m "🧨 CICONHA CHAOS CARD: gerar ${{ github.event.inputs.usuario }}" || echo "Nada a commitar"
+          git push --follow-tags || echo "Push falhou (talvez sem mudanças)"
+
