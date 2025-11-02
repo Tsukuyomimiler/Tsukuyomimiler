@@ -1,12 +1,15 @@
 name: 🧨 CICONHA CHAOS CARD
 
 on:
+  # ⏰ Executa automaticamente toda segunda-feira às 03:00 UTC
   schedule:
-    - cron: "0 3 * * 1" # Toda segunda-feira às 03:00 UTC
+    - cron: "0 3 * * 1"
+  
+  # 🚀 Permite rodar manualmente no GitHub Actions
   workflow_dispatch:
     inputs:
       usuario:
-        description: "Seu nome de usuário GitHub"
+        description: "Seu nome de usuário do GitHub"
         required: true
         default: "ciconha"
       empresa:
@@ -23,15 +26,14 @@ permissions:
 
 jobs:
   chaos-card:
+    name: 🧩 Gerar Chaos Card SVG
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📦 Checkout repositório
+      - name: 🔄 Checkout repositório
         uses: actions/checkout@v4
-        with:
-          persist-credentials: true
 
-      - name: ⚙️ Preparar ambiente
+      - name: 🧰 Preparar ambiente
         run: |
           sudo apt-get update -y
           sudo apt-get install -y curl jq iconv
@@ -41,8 +43,8 @@ jobs:
         run: |
           set -e
           USER="${{ github.event.inputs.usuario }}"
-          TOKEN="${{ secrets.TSUKUYOMI_CICONHA || '' }}"
-          echo "📡 Coletando dados do usuário: $USER"
+          TOKEN="${{ secrets.TSUKUYOMI_CICONHA }}"
+          echo "🛰️ Coletando dados de: $USER"
 
           AUTH=""
           if [ -n "$TOKEN" ]; then
@@ -67,109 +69,64 @@ jobs:
           PRS=$(jq '[.[] | select(.type == "PullRequestEvent")] | length' events.json)
           ISSUES=$(jq '[.[] | select(.type == "IssuesEvent")] | length' events.json)
           STARS=$(jq '[.[] | .stargazers_count] | add' repos.json)
-          TOP1=$(jq -r 'sort_by(-.stargazers_count) | .[0].name // "Nenhum"' repos.json)
-          TOP1_DESC=$(sanitize "$(jq -r 'sort_by(-.stargazers_count) | .[0].description // "Sem descrição"' repos.json)")
+          TOP1=$(jq -r 'sort_by(-.stargazers_count) | .[0] // {} | .name' repos.json)
+          TOP1_DESC=$(sanitize "$(jq -r 'sort_by(-.stargazers_count) | .[0] // {} | (.description // "Sem descrição")' repos.json)")
+          TOTAL_XP=$((REPOS * 50 + FOLLOWERS * 20 + COMMITS * 2 + PRS * 10 + ISSUES * 5))
+          LEVEL=$((TOTAL_XP / 1000 + 1))
+          XP_PERC=$(( (TOTAL_XP % 1000) * 100 / 1000 ))
+          DATE=$(date +'%Y-%m-%d')
 
-          XP=$((REPOS * 50 + FOLLOWERS * 20 + COMMITS * 2 + PRS * 10 + ISSUES * 5))
-          LEVEL=$((XP / 1000 + 1))
-          XP_PERC=$(( (XP % 1000) * 100 / 1000 ))
-          DATE=$(date +'%Y年%m月%d日')
-          STYLE=$((RANDOM % 4))
+          echo "login=${LOGIN}" >> "$GITHUB_OUTPUT"
+          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+          echo "bio=${BIO}" >> "$GITHUB_OUTPUT"
+          echo "avatar=${AVATAR}" >> "$GITHUB_OUTPUT"
+          echo "repos=${REPOS}" >> "$GITHUB_OUTPUT"
+          echo "followers=${FOLLOWERS}" >> "$GITHUB_OUTPUT"
+          echo "commits=${COMMITS}" >> "$GITHUB_OUTPUT"
+          echo "prs=${PRS}" >> "$GITHUB_OUTPUT"
+          echo "issues=${ISSUES}" >> "$GITHUB_OUTPUT"
+          echo "stars=${STARS}" >> "$GITHUB_OUTPUT"
+          echo "top1=${TOP1}" >> "$GITHUB_OUTPUT"
+          echo "top1_desc=${TOP1_DESC}" >> "$GITHUB_OUTPUT"
+          echo "xp=${TOTAL_XP}" >> "$GITHUB_OUTPUT"
+          echo "level=${LEVEL}" >> "$GITHUB_OUTPUT"
+          echo "xp_perc=${XP_PERC}" >> "$GITHUB_OUTPUT"
+          echo "date=${DATE}" >> "$GITHUB_OUTPUT"
 
-          echo "STYLE=$STYLE" >> $GITHUB_OUTPUT
-          echo "LOGIN=$LOGIN" >> $GITHUB_OUTPUT
-          echo "NAME=$NAME" >> $GITHUB_OUTPUT
-          echo "BIO=$BIO" >> $GITHUB_OUTPUT
-          echo "AVATAR=$AVATAR" >> $GITHUB_OUTPUT
-          echo "REPOS=$REPOS" >> $GITHUB_OUTPUT
-          echo "FOLLOWERS=$FOLLOWERS" >> $GITHUB_OUTPUT
-          echo "COMMITS=$COMMITS" >> $GITHUB_OUTPUT
-          echo "PRS=$PRS" >> $GITHUB_OUTPUT
-          echo "ISSUES=$ISSUES" >> $GITHUB_OUTPUT
-          echo "STARS=$STARS" >> $GITHUB_OUTPUT
-          echo "TOP1=$TOP1" >> $GITHUB_OUTPUT
-          echo "TOP1_DESC=$TOP1_DESC" >> $GITHUB_OUTPUT
-          echo "XP=$XP" >> $GITHUB_OUTPUT
-          echo "LEVEL=$LEVEL" >> $GITHUB_OUTPUT
-          echo "XP_PERC=$XP_PERC" >> $GITHUB_OUTPUT
-          echo "DATE=$DATE" >> $GITHUB_OUTPUT
-
-      - name: 🎨 Gerar SVG Chaos Card
+      - name: 🎨 Gerar SVG
         run: |
           set -e
-          USER="${{ github.event.inputs.usuario }}"
           mkdir -p chaos
-
-          STYLE="${{ steps.collect.outputs.STYLE }}"
-          LOGIN="${{ steps.collect.outputs.LOGIN }}"
-          NAME="${{ steps.collect.outputs.NAME }}"
-          BIO="${{ steps.collect.outputs.BIO }}"
-          AVATAR="${{ steps.collect.outputs.AVATAR }}"
-          REPOS="${{ steps.collect.outputs.REPOS }}"
-          FOLLOWERS="${{ steps.collect.outputs.FOLLOWERS }}"
-          COMMITS="${{ steps.collect.outputs.COMMITS }}"
-          PRS="${{ steps.collect.outputs.PRS }}"
-          ISSUES="${{ steps.collect.outputs.ISSUES }}"
-          STARS="${{ steps.collect.outputs.STARS }}"
-          TOP1="${{ steps.collect.outputs.TOP1 }}"
-          TOP1_DESC="${{ steps.collect.outputs.TOP1_DESC }}"
-          XP="${{ steps.collect.outputs.XP }}"
-          LEVEL="${{ steps.collect.outputs.LEVEL }}"
-          XP_PERC="${{ steps.collect.outputs.XP_PERC }}"
-          DATE="${{ steps.collect.outputs.DATE }}"
+          USER="${{ github.event.inputs.usuario }}"
+          NAME="${{ steps.collect.outputs.name }}"
+          BIO="${{ steps.collect.outputs.bio }}"
+          AVATAR="${{ steps.collect.outputs.avatar }}"
+          REPOS="${{ steps.collect.outputs.repos }}"
+          FOLLOWERS="${{ steps.collect.outputs.followers }}"
+          STARS="${{ steps.collect.outputs.stars }}"
+          XP="${{ steps.collect.outputs.xp }}"
+          LEVEL="${{ steps.collect.outputs.level }}"
+          XP_PERC="${{ steps.collect.outputs.xp_perc }}"
+          DATE="${{ steps.collect.outputs.date }}"
           EMPRESA="${{ github.event.inputs.empresa }}"
           CARGO="${{ github.event.inputs.cargo }}"
-
-          if [ "$STYLE" = "0" ]; then
-            BG="#0f1720"; ACC="#FF2E63"; GRA="#08D9D6"; FONT="'Noto Sans JP', sans-serif"
-          elif [ "$STYLE" = "1" ]; then
-            BG="#14121b"; ACC="#FFD166"; GRA="#06D6A0"; FONT="'Noto Sans JP', sans-serif"
-          elif [ "$STYLE" = "2" ]; then
-            BG="#ffffff"; ACC="#1b1b1b"; GRA="#e63946"; FONT="'Yu Gothic', sans-serif"
-          else
-            BG="#080808"; ACC="#7C4DFF"; GRA="#00E5FF"; FONT="'Courier New', monospace"
-          fi
-
           BAR_TOTAL=140
           FILLED=$(( BAR_TOTAL * XP_PERC / 100 ))
 
           cat > "chaos/${USER}-chaos.svg" <<EOF
-<svg xmlns="http://www.w3.org/2000/svg" width="460" height="220" viewBox="0 0 460 220">
-  <style>
-    .jp { font: bold 16px ${FONT}; fill: ${ACC}; }
-    .label { font: 10px sans-serif; fill: #cfcfcf; }
-    .small { font: 9px sans-serif; fill: #a8a8a8; }
-    .graffiti { font: italic 12px ${FONT}; fill: ${GRA}; }
-    .bg { fill: ${BG}; }
-  </style>
-
-  <rect width="100%" height="100%" class="bg" rx="18"/>
-  <clipPath id="clip"><circle cx="50" cy="50" r="34"/></clipPath>
-
-  <image href="${AVATAR}" x="16" y="16" width="68" height="68" clip-path="url(#clip)"/>
-  <rect x="12" y="12" width="76" height="76" rx="12" fill="none" stroke="${ACC}" stroke-width="1.6" opacity="0.8"/>
-
-  <text x="100" y="36" class="jp">ユーザー：${LOGIN}</text>
-  <text x="100" y="56" class="small">${NAME} • ${EMPRESA}</text>
-  <text x="100" y="74" class="label">職業：${CARGO}</text>
-
-  <text x="18" y="104" class="label">${BIO}</text>
-
-  <text x="18" y="164" class="label">Commits / PRs / Issues</text>
-  <text x="18" y="182" class="graffiti">${COMMITS} / ${PRS} / ${ISSUES}</text>
-
-  <text x="18" y="202" class="label">Top: ${TOP1} — <tspan class="small">${TOP1_DESC}</tspan></text>
-
-  <rect x="300" y="22" width="${BAR_TOTAL}" height="12" rx="6" fill="#222" opacity="0.5"/>
-  <rect x="300" y="22" width="${FILLED}" height="12" rx="6" fill="${ACC}"/>
-  <text x="370" y="18" class="small" text-anchor="middle">LV.${LEVEL} • XP ${XP}</text>
-
-  <text x="18" y="212" font-size="10" fill="${ACC}">⚠️ ナノボット過負荷 - データ破片化</text>
-  <text x="280" y="212" font-size="10" fill="${GRA}">CHAOS MODE • 更新日: ${DATE}</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="460" height="220">
+  <rect width="100%" height="100%" fill="#0b0d0f" rx="16"/>
+  <image href="${AVATAR}" x="20" y="20" width="60" height="60" clip-path="url(#clip)"/>
+  <text x="100" y="40" fill="#08d9d6" font-size="16" font-weight="bold">${NAME}</text>
+  <text x="100" y="58" fill="#ff2e63" font-size="12">${EMPRESA} • ${CARGO}</text>
+  <text x="20" y="100" fill="#ccc" font-size="10">${BIO}</text>
+  <text x="20" y="180" fill="#08d9d6" font-size="10">LV.${LEVEL} • XP ${XP}</text>
+  <rect x="20" y="160" width="${BAR_TOTAL}" height="8" rx="4" fill="#222"/>
+  <rect x="20" y="160" width="${FILLED}" height="8" rx="4" fill="#ff2e63"/>
+  <text x="20" y="200" fill="#777" font-size="9">Repos: ${REPOS} • Followers: ${FOLLOWERS} • Stars: ${STARS}</text>
+  <text x="330" y="200" fill="#08d9d6" font-size="9">Atualizado: ${DATE}</text>
 </svg>
 EOF
-
-          echo "✅ Chaos Card SVG gerado com sucesso!"
 
       - name: 💾 Commit e Push
         env:
@@ -178,5 +135,5 @@ EOF
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add chaos/
-          git commit -m "🧨 Chaos Card atualizado para ${{ github.event.inputs.usuario }}" || echo "Nenhuma alteração"
+          git commit -m "🧨 Chaos Card gerado para ${{ github.event.inputs.usuario }}" || echo "Nada novo a commitar"
           git push
