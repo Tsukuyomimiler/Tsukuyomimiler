@@ -1,4 +1,4 @@
-name: 🈶 JAPAN CYBER CARD
+name: 🈶 Create japan-card
 
 on:
   workflow_dispatch:
@@ -16,28 +16,37 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🧩 Checkout do repositório
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           persist-credentials: true
 
-      - name: ⚙️ Instalar dependências
+      - name: Preparar ambiente
         run: |
+          set -e
           sudo apt-get update -y
           sudo apt-get install -y curl jq librsvg2-bin
 
-      - name: 🔍 Buscar dados do GitHub
+      - name: Buscar dados do GitHub
         id: dados
         run: |
+          set -e
           USER="${{ github.event.inputs.usuario }}"
-          curl -s "https://api.github.com/users/$USER" > user.json
-          curl -s "https://api.github.com/users/$USER/repos?per_page=100" > repos.json
-          curl -s "https://api.github.com/users/$USER/events?per_page=100" > events.json
+          echo "Coletando dados para: $USER"
 
-          LOGIN=$(jq -r '.login' user.json)
-          AVATAR=$(jq -r '.avatar_url' user.json)
-          REPOS=$(jq -r '.public_repos' user.json)
-          FOLLOWERS=$(jq -r '.followers' user.json)
+          curl -s "https://api.github.com/users/${USER}" -o user.json
+          curl -s "https://api.github.com/users/${USER}/repos?per_page=100" -o repos.json
+          curl -s "https://api.github.com/users/${USER}/events?per_page=100" -o events.json
+
+          sanitize() {
+            # remove quebras e escape de aspas
+            echo "$1" | tr -d '\n' | sed 's/"/\\"/g'
+          }
+
+          LOGIN=$(jq -r '.login // ""' user.json)
+          AVATAR=$(jq -r '.avatar_url // ""' user.json)
+          REPOS=$(jq -r '.public_repos // 0' user.json)
+          FOLLOWERS=$(jq -r '.followers // 0' user.json)
           COMMITS=$(jq '[.[] | select(.type == "PushEvent")] | length' events.json)
           PRS=$(jq '[.[] | select(.type == "PullRequestEvent")] | length' events.json)
           ISSUES=$(jq '[.[] | select(.type == "IssuesEvent")] | length' events.json)
@@ -45,72 +54,137 @@ jobs:
           LEVEL=$((XP / 1000 + 1))
           DATE=$(date +'%Y年%m月%d日')
 
+          # top repo safe
+          TOP1=$(jq -r 'sort_by(-.stargazers_count) | .[0].name // "なし"' repos.json)
+          TOP1_DESC=$(jq -r 'sort_by(-.stargazers_count) | .[0].description // "説明なし"' repos.json)
+          TOP1_DESC=$(sanitize "$TOP1_DESC")
+
+          # export outputs
+          echo "login=${LOGIN}" >> "$GITHUB_OUTPUT"
+          echo "avatar=${AVATAR}" >> "$GITHUB_OUTPUT"
+          echo "repos=${REPOS}" >> "$GITHUB_OUTPUT"
+          echo "followers=${FOLLOWERS}" >> "$GITHUB_OUTPUT"
+          echo "commits=${COMMITS}" >> "$GITHUB_OUTPUT"
+          echo "prs=${PRS}" >> "$GITHUB_OUTPUT"
+          echo "issues=${ISSUES}" >> "$GITHUB_OUTPUT"
+          echo "xp=${XP}" >> "$GITHUB_OUTPUT"
+          echo "level=${LEVEL}" >> "$GITHUB_OUTPUT"
+          echo "date=${DATE}" >> "$GITHUB_OUTPUT"
+          echo "top1=${TOP1}" >> "$GITHUB_OUTPUT"
+          echo "top1_desc=${TOP1_DESC}" >> "$GITHUB_OUTPUT"
+
+      - name: Gerar SVG (Japan Cyberpunk, preto/branco/vermelho)
+        run: |
+          set -e
+          USER="${{ github.event.inputs.usuario }}"
           mkdir -p japan
 
-          echo "LOGIN=$LOGIN" >> $GITHUB_OUTPUT
-          echo "AVATAR=$AVATAR" >> $GITHUB_OUTPUT
-          echo "REPOS=$REPOS" >> $GITHUB_OUTPUT
-          echo "FOLLOWERS=$FOLLOWERS" >> $GITHUB_OUTPUT
-          echo "COMMITS=$COMMITS" >> $GITHUB_OUTPUT
-          echo "PRS=$PRS" >> $GITHUB_OUTPUT
-          echo "ISSUES=$ISSUES" >> $GITHUB_OUTPUT
-          echo "XP=$XP" >> $GITHUB_OUTPUT
-          echo "LEVEL=$LEVEL" >> $GITHUB_OUTPUT
-          echo "DATE=$DATE" >> $GITHUB_OUTPUT
+          LOGIN="${{ steps.dados.outputs.login }}"
+          AVATAR="${{ steps.dados.outputs.avatar }}"
+          REPOS="${{ steps.dados.outputs.repos }}"
+          FOLLOWERS="${{ steps.dados.outputs.followers }}"
+          COMMITS="${{ steps.dados.outputs.commits }}"
+          PRS="${{ steps.dados.outputs.prs }}"
+          ISSUES="${{ steps.dados.outputs.issues }}"
+          XP="${{ steps.dados.outputs.xp }}"
+          LEVEL="${{ steps.dados.outputs.level }}"
+          DATE="${{ steps.dados.outputs.date }}"
+          TOP1="${{ steps.dados.outputs.top1 }}"
+          TOP1_DESC="${{ steps.dados.outputs.top1_desc }}"
 
-      - name: 🎨 Gerar SVG estilo Japão Cyberpunk
-        run: |
-          LOGIN="${{ steps.dados.outputs.LOGIN }}"
-          AVATAR="${{ steps.dados.outputs.AVATAR }}"
-          REPOS="${{ steps.dados.outputs.REPOS }}"
-          FOLLOWERS="${{ steps.dados.outputs.FOLLOWERS }}"
-          COMMITS="${{ steps.dados.outputs.COMMITS }}"
-          PRS="${{ steps.dados.outputs.PRS }}"
-          ISSUES="${{ steps.dados.outputs.ISSUES }}"
-          XP="${{ steps.dados.outputs.XP }}"
-          LEVEL="${{ steps.dados.outputs.LEVEL }}"
-          DATE="${{ steps.dados.outputs.DATE }}"
+          # calcula barra (segura)
+          BAR_TOTAL=360
+          FILLED=$(( (XP % 1000) * BAR_TOTAL / 1000 ))
 
-          cat > japan/card.svg <<EOF
-<svg xmlns="http://www.w3.org/2000/svg" width="460" height="280">
+          # Cria SVG com layout minimal cyberpunk japonês (preto, branco, vermelho)
+          cat > "japan/${USER}-card.svg" <<'SVG'
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="560" viewBox="0 0 920 560">
   <style>
-    .bg { fill: #000; }
-    .moon { fill: #ff0000; }
-    .text { font: bold 14px 'Noto Sans JP', sans-serif; fill: #fff; }
-    .label { font: 12px 'Noto Sans JP', sans-serif; fill: #ccc; }
-    .bar { fill: #ff0000; }
+    .bg{fill:#000}
+    .moon{fill:#b70a0a}
+    .title{font: bold 36px "Noto Sans JP", sans-serif; fill:#fff}
+    .sub{font:18px "Noto Sans JP", sans-serif; fill:#ddd}
+    .mono{font:16px "Courier New", monospace; fill:#fff}
+    .small{font:14px "Noto Sans JP", sans-serif; fill:#bbb}
+    .bar-bg{fill:#111}
+    .bar-fill{fill:#b70a0a}
   </style>
-  <rect width="100%" height="100%" class="bg"/>
-  <circle cx="400" cy="60" r="40" class="moon"/>
-  <image href="${AVATAR}" x="30" y="30" width="60" height="60" clip-path="url(#clip)"/>
-  <defs><clipPath id="clip"><circle cx="60" cy="60" r="30"/></clipPath></defs>
+  <rect width="100%" height="100%" class="bg" rx="28"/>
 
-  <text x="110" y="50" class="text">ユーザー：${LOGIN}</text>
-  <text x="110" y="75" class="label">職業：コードの冒険者</text>
-  <text x="110" y="95" class="label">独立 • 個人開発者</text>
+  <!-- Red moon / japanese sun -->
+  <g transform="translate(720,120)">
+    <circle cx="0" cy="0" r="120" class="moon"/>
+    <g transform="translate(-20,-30)" fill="#fff" font-family="Noto Sans JP">
+      <text x="0" y="0" font-size="34" font-weight="700" text-anchor="middle">先駆者</text>
+      <text x="0" y="40" font-size="18" text-anchor="middle">職業: コードの冒険者</text>
+    </g>
+  </g>
 
-  <text x="30" y="140" class="label">リポジトリ：${REPOS}</text>
-  <text x="30" y="160" class="label">フォロワー：${FOLLOWERS}</text>
-  <text x="30" y="180" class="label">コミット / PR / 課題：${COMMITS} / ${PRS} / ${ISSUES}</text>
+  <!-- Avatar (fundo branco pequeno) -->
+  <defs>
+    <clipPath id="avatarClip"><circle cx="120" cy="120" r="80"/></clipPath>
+  </defs>
+  <rect x="30" y="60" width="180" height="180" rx="18" fill="#111" />
+  <image href="${AVATAR_PLACEHOLDER}" x="40" y="70" width="160" height="160" clip-path="url(#avatarClip)"/>
 
-  <text x="30" y="210" class="label">LV.${LEVEL} • 経験値 ${XP}</text>
-  <rect x="30" y="220" width="300" height="10" fill="#333"/>
-  <rect x="30" y="220" width="$((XP % 300))" height="10" class="bar"/>
+  <!-- Left texts (japanese) -->
+  <text x="240" y="110" class="title">ユーザー：${LOGIN_PLACEHOLDER}</text>
+  <text x="240" y="150" class="sub">独立 • 個人開発者</text>
+  <text x="240" y="185" class="small">リポジトリ：${REPOS_PLACEHOLDER}</text>
+  <text x="240" y="210" class="small">フォロワー：${FOLLOWERS_PLACEHOLDER}</text>
 
-  <text x="360" y="260" class="label">${DATE}</text>
+  <!-- activity -->
+  <text x="240" y="250" class="small">コミット / PR / 課題：${COMMITS_PLACEHOLDER} / ${PRS_PLACEHOLDER} / ${ISSUES_PLACEHOLDER}</text>
+
+  <!-- top repo -->
+  <text x="240" y="290" class="small">トップ: ${TOP1_PLACEHOLDER} — ${TOP1_DESC_PLACEHOLDER}</text>
+
+  <!-- XP bar -->
+  <rect x="60" y="340" width="360" height="18" rx="9" class="bar-bg"/>
+  <rect x="60" y="340" width="${FILLED_PLACEHOLDER}" height="18" rx="9" class="bar-fill"/>
+  <text x="240" y="380" class="mono" text-anchor="middle">LV.${LEVEL_PLACEHOLDER} • 経験値 ${XP_PLACEHOLDER}</text>
+
+  <text x="760" y="520" class="small" text-anchor="end">${DATE_PLACEHOLDER}</text>
 </svg>
-EOF
+SVG
 
-      - name: 🖼️ Converter SVG para PNG
+          # Substituições seguras (uso sed, escape de /)
+          svgfile="japan/${USER}-card.svg"
+          sed -i "s|${AVATAR_PLACEHOLDER}|${AVATAR}|g" "$svgfile"
+          sed -i "s|${LOGIN_PLACEHOLDER}|${LOGIN}|g" "$svgfile"
+          sed -i "s|${REPOS_PLACEHOLDER}|${REPOS}|g" "$svgfile"
+          sed -i "s|${FOLLOWERS_PLACEHOLDER}|${FOLLOWERS}|g" "$svgfile"
+          sed -i "s|${COMMITS_PLACEHOLDER}|${COMMITS}|g" "$svgfile"
+          sed -i "s|${PRS_PLACEHOLDER}|${PRS}|g" "$svgfile"
+          sed -i "s|${ISSUES_PLACEHOLDER}|${ISSUES}|g" "$svgfile"
+          sed -i "s|${XP_PLACEHOLDER}|${XP}|g" "$svgfile"
+          sed -i "s|${LEVEL_PLACEHOLDER}|${LEVEL}|g" "$svgfile"
+          sed -i "s|${DATE_PLACEHOLDER}|${DATE}|g" "$svgfile"
+          sed -i "s|${TOP1_PLACEHOLDER}|${TOP1}|g" "$svgfile"
+          sed -i "s|${TOP1_DESC_PLACEHOLDER}|${TOP1_DESC}|g" "$svgfile"
+          sed -i "s|${FILLED_PLACEHOLDER}|${FILLED}|g" "$svgfile"
+
+          echo "SVG criado: $svgfile"
+
+      - name: Converter SVG para PNG (920x560)
         run: |
-          rsvg-convert -w 920 -h 560 japan/card.svg -o japan/card.png
+          set -e
+          svg="japan/${{ github.event.inputs.usuario }}-card.svg"
+          png="japan/${{ github.event.inputs.usuario }}-card.png"
+          if [ -f "$svg" ]; then
+            rsvg-convert -w 920 -h 560 "$svg" -o "$png"
+            echo "PNG gerado: $png"
+          else
+            echo "SVG não encontrado: $svg" >&2
+            exit 1
+          fi
 
-      - name: 💾 Commit e Push
+      - name: Commit e Push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add japan/
-          git commit -m "🈶 Cartão japonês gerado para ${{ github.event.inputs.usuario }}" || echo "Nada a commitar"
+          git commit -m "🈶 Gerado japan card para ${{ github.event.inputs.usuario }}" || echo "Sem mudanças para commitar"
           git push
