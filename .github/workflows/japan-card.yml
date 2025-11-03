@@ -1,147 +1,76 @@
-name: 🈶 Create japan-card
+name: Ciconha
 
 on:
   workflow_dispatch:
     inputs:
       usuario:
-        description: "Usuário do GitHub (ex: ciconha)"
+        description: "Nome do usuário (sem @)"
         required: true
-        default: "ciconha"
-
-permissions:
-  contents: write
+        default: "Tsukuyomimiler"
 
 jobs:
-  gerar-card-japones:
+  gerar-card:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Clonar repositório
         uses: actions/checkout@v4
-        with:
-          persist-credentials: true
 
-      - name: Preparar ambiente
+      - name: Instalar dependências
         run: |
-          set -e
-          sudo apt-get update -y
-          sudo apt-get install -y curl jq librsvg2-bin
+          sudo apt-get update
+          sudo apt-get install -y librsvg2-bin curl jq
 
       - name: Buscar dados do GitHub
         id: dados
         run: |
-          set -e
-          USER="${{ github.event.inputs.usuario }}"
-          echo "Coletando dados para: $USER"
+          USER=${{ github.event.inputs.usuario }}
+          echo "🔍 Buscando dados de $USER"
 
-          curl -s "https://api.github.com/users/${USER}" -o user.json
-          curl -s "https://api.github.com/users/${USER}/repos?per_page=100" -o repos.json
-          curl -s "https://api.github.com/users/${USER}/events?per_page=100" -o events.json
+          DATA=$(curl -s https://api.github.com/users/$USER)
+          LOGIN=$(echo "$DATA" | jq -r .login)
+          AVATAR=$(echo "$DATA" | jq -r .avatar_url)
+          REPOS=$(echo "$DATA" | jq -r .public_repos)
+          FOLLOWERS=$(echo "$DATA" | jq -r .followers)
 
-          sanitize() {
-            echo "$1" | tr -d '\n' | sed 's/"/\\"/g'
-          }
+          COMMITS=$(curl -s "https://api.github.com/search/commits?q=author:$USER" -H "Accept: application/vnd.github.cloak-preview" | jq -r .total_count)
+          PRS=$(curl -s "https://api.github.com/search/issues?q=author:$USER+type:pr" | jq -r .total_count)
+          ISSUES=$(curl -s "https://api.github.com/search/issues?q=author:$USER+type:issue" | jq -r .total_count)
 
-          LOGIN=$(jq -r '.login // ""' user.json)
-          AVATAR=$(jq -r '.avatar_url // ""' user.json)
-          REPOS=$(jq -r '.public_repos // 0' user.json)
-          FOLLOWERS=$(jq -r '.followers // 0' user.json)
-          COMMITS=$(jq '[.[] | select(.type == "PushEvent")] | length' events.json)
-          PRS=$(jq '[.[] | select(.type == "PullRequestEvent")] | length' events.json)
-          ISSUES=$(jq '[.[] | select(.type == "IssuesEvent")] | length' events.json)
-          XP=$((REPOS * 50 + FOLLOWERS * 20 + COMMITS * 2 + PRS * 10 + ISSUES * 5))
-          LEVEL=$((XP / 1000 + 1))
-          DATE=$(date +'%Y年%m月%d日')
+          XP=$(( (COMMITS + PRS + ISSUES) / 5 ))
+          LEVEL=$(( XP / 100 + 1 ))
+          DATE=$(date +"%d/%m/%Y")
 
-          TOP1=$(jq -r 'sort_by(-.stargazers_count) | .[0].name // "なし"' repos.json)
-          TOP1_DESC=$(jq -r 'sort_by(-.stargazers_count) | .[0].description // "説明なし"' repos.json)
-          TOP1_DESC=$(sanitize "$TOP1_DESC")
+          # Simulação de "top linguagens"
+          TOP1="Python"
+          TOP1_DESC="Análise e automação"
+          FILLED=$(( XP / 2 ))
+          [ $FILLED -gt 360 ] && FILLED=360
 
-          echo "login=${LOGIN}" >> "$GITHUB_OUTPUT"
-          echo "avatar=${AVATAR}" >> "$GITHUB_OUTPUT"
-          echo "repos=${REPOS}" >> "$GITHUB_OUTPUT"
-          echo "followers=${FOLLOWERS}" >> "$GITHUB_OUTPUT"
-          echo "commits=${COMMITS}" >> "$GITHUB_OUTPUT"
-          echo "prs=${PRS}" >> "$GITHUB_OUTPUT"
-          echo "issues=${ISSUES}" >> "$GITHUB_OUTPUT"
-          echo "xp=${XP}" >> "$GITHUB_OUTPUT"
-          echo "level=${LEVEL}" >> "$GITHUB_OUTPUT"
-          echo "date=${DATE}" >> "$GITHUB_OUTPUT"
-          echo "top1=${TOP1}" >> "$GITHUB_OUTPUT"
-          echo "top1_desc=${TOP1_DESC}" >> "$GITHUB_OUTPUT"
+          echo "LOGIN=$LOGIN" >> $GITHUB_ENV
+          echo "AVATAR=$AVATAR" >> $GITHUB_ENV
+          echo "REPOS=$REPOS" >> $GITHUB_ENV
+          echo "FOLLOWERS=$FOLLOWERS" >> $GITHUB_ENV
+          echo "COMMITS=$COMMITS" >> $GITHUB_ENV
+          echo "PRS=$PRS" >> $GITHUB_ENV
+          echo "ISSUES=$ISSUES" >> $GITHUB_ENV
+          echo "XP=$XP" >> $GITHUB_ENV
+          echo "LEVEL=$LEVEL" >> $GITHUB_ENV
+          echo "DATE=$DATE" >> $GITHUB_ENV
+          echo "TOP1=$TOP1" >> $GITHUB_ENV
+          echo "TOP1_DESC=$TOP1_DESC" >> $GITHUB_ENV
+          echo "FILLED=$FILLED" >> $GITHUB_ENV
 
-      - name: Gerar SVG (Japan Cyberpunk preto/branco/vermelho)
+      - name: Gerar SVG personalizado
         run: |
-          set -e
-          USER="${{ github.event.inputs.usuario }}"
+          USER=${{ github.event.inputs.usuario }}
           mkdir -p japan
+          cat << 'SVG_CONTENT' > "japan/${USER}-card.svg"
+          <svg xmlns="http://www.w3.org/2000/svg" width="920" height="560" viewBox="0 0 920 560">
 
-          LOGIN="${{ steps.dados.outputs.login }}"
-          AVATAR="${{ steps.dados.outputs.avatar }}"
-          REPOS="${{ steps.dados.outputs.repos }}"
-          FOLLOWERS="${{ steps.dados.outputs.followers }}"
-          COMMITS="${{ steps.dados.outputs.commits }}"
-          PRS="${{ steps.dados.outputs.prs }}"
-          ISSUES="${{ steps.dados.outputs.issues }}"
-          XP="${{ steps.dados.outputs.xp }}"
-          LEVEL="${{ steps.dados.outputs.level }}"
-          DATE="${{ steps.dados.outputs.date }}"
-          TOP1="${{ steps.dados.outputs.top1 }}"
-          TOP1_DESC="${{ steps.dados.outputs.top1_desc }}"
 
-          BAR_TOTAL=360
-          FILLED=$(( (XP % 1000) * BAR_TOTAL / 1000 ))
-
-          # Cria SVG com placeholders seguros (substituiremos depois)
-          cat > "japan/${USER}-card.svg" <<'SVG'
-<svg xmlns="http://www.w3.org/2000/svg" width="920" height="560" viewBox="0 0 920 560">
-  <style>
-    .bg{fill:#000}
-    .moon{fill:#b70a0a}
-    .title{font: bold 36px "Noto Sans JP", sans-serif; fill:#fff}
-    .sub{font:18px "Noto Sans JP", sans-serif; fill:#ddd}
-    .mono{font:16px "Courier New", monospace; fill:#fff}
-    .small{font:14px "Noto Sans JP", sans-serif; fill:#bbb}
-    .bar-bg{fill:#111}
-    .bar-fill{fill:#b70a0a}
-  </style>
-  <rect width="100%" height="100%" class="bg" rx="28"/>
-
-  <!-- Red moon -->
-  <g transform="translate(720,120)">
-    <circle cx="0" cy="0" r="120" class="moon"/>
-    <g transform="translate(-20,-30)" fill="#fff" font-family="Noto Sans JP">
-      <text x="0" y="0" font-size="34" font-weight="700" text-anchor="middle">先駆者</text>
-      <text x="0" y="40" font-size="18" text-anchor="middle">職業: コードの冒険者</text>
-    </g>
-  </g>
-
-  <!-- Avatar -->
-  <defs><clipPath id="avatarClip"><circle cx="120" cy="120" r="80"/></clipPath></defs>
-  <rect x="30" y="60" width="180" height="180" rx="18" fill="#111" />
-  <image href="__AVATAR__" x="40" y="70" width="160" height="160" clip-path="url(#avatarClip)"/>
-
-  <!-- Textos em japonês -->
-  <text x="240" y="110" class="title">ユーザー：__LOGIN__</text>
-  <text x="240" y="150" class="sub">独立 • 個人開発者</text>
-  <text x="240" y="185" class="small">リポジトリ：__REPOS__</text>
-  <text x="240" y="210" class="small">フォロワー：__FOLLOWERS__</text>
-
-  <text x="240" y="250" class="small">コミット / PR / 課題：__COMMITS__ / __PRS__ / __ISSUES__</text>
-
-  <text x="240" y="290" class="small">トップ: __TOP1__ — __TOP1_DESC__</text>
-
-  <!-- Barra de XP -->
-  <rect x="60" y="340" width="360" height="18" rx="9" class="bar-bg"/>
-  <rect x="60" y="340" width="__FILLED__" height="18" rx="9" class="bar-fill"/>
-  <text x="240" y="380" class="mono" text-anchor="middle">LV.__LEVEL__ • 経験値 __XP__</text>
-
-  <text x="760" y="520" class="small" text-anchor="end">__DATE__</text>
-</svg>
-SVG
-
-          # Substituir placeholders com valores reais (seguro)
           svgfile="japan/${USER}-card.svg"
+
           sed -i "s|__AVATAR__|${AVATAR}|g" "$svgfile"
           sed -i "s|__LOGIN__|${LOGIN}|g" "$svgfile"
           sed -i "s|__REPOS__|${REPOS}|g" "$svgfile"
@@ -153,22 +82,20 @@ SVG
           sed -i "s|__LEVEL__|${LEVEL}|g" "$svgfile"
           sed -i "s|__DATE__|${DATE}|g" "$svgfile"
           sed -i "s|__TOP1__|${TOP1}|g" "$svgfile"
-          # TOP1_DESC já sanitizado no passo anterior
           sed -i "s|__TOP1_DESC__|${TOP1_DESC}|g" "$svgfile"
           sed -i "s|__FILLED__|${FILLED}|g" "$svgfile"
 
-          echo "SVG criado: $svgfile"
+          echo "✅ SVG criado: $svgfile"
 
       - name: Converter SVG para PNG (920x560)
         run: |
-          set -e
           svg="japan/${{ github.event.inputs.usuario }}-card.svg"
           png="japan/${{ github.event.inputs.usuario }}-card.png"
           if [ -f "$svg" ]; then
             rsvg-convert -w 920 -h 560 "$svg" -o "$png"
-            echo "PNG gerado: $png"
+            echo "🖼️ PNG gerado: $png"
           else
-            echo "SVG não encontrado: $svg" >&2
+            echo "❌ SVG não encontrado: $svg" >&2
             exit 1
           fi
 
@@ -179,5 +106,5 @@ SVG
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add japan/
-          git commit -m "🈶 Gerado japan card para ${{ github.event.inputs.usuario }}" || echo "Sem mudanças para commitar"
+          git commit -m "🈶 Gerado card japonês para ${{ github.event.inputs.usuario }}" || echo "ℹ️ Nenhuma mudança"
           git push
