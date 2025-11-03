@@ -87,17 +87,6 @@ jobs:
 
           echo "✅ SVG criado: $svgfile"
 
-      - name: Converter SVG para PNG (920x560)
-        run: |
-          svg="japan/${{ github.event.inputs.usuario }}-card.svg"
-          png="japan/${{ github.event.inputs.usuario }}-card.png"
-          if [ -f "$svg" ]; then
-            rsvg-convert -w 920 -h 560 "$svg" -o "$png"
-            echo "🖼️ PNG gerado: $png"
-          else
-            echo "❌ SVG não encontrado: $svg" >&2
-            exit 1
-          fi
 
       - name: Commit e Push
         env:
