@@ -39,7 +39,6 @@ jobs:
           curl -s "https://api.github.com/users/${USER}/events?per_page=100" -o events.json
 
           sanitize() {
-            # remove quebras e escape de aspas
             echo "$1" | tr -d '\n' | sed 's/"/\\"/g'
           }
 
@@ -54,12 +53,10 @@ jobs:
           LEVEL=$((XP / 1000 + 1))
           DATE=$(date +'%Y年%m月%d日')
 
-          # top repo safe
           TOP1=$(jq -r 'sort_by(-.stargazers_count) | .[0].name // "なし"' repos.json)
           TOP1_DESC=$(jq -r 'sort_by(-.stargazers_count) | .[0].description // "説明なし"' repos.json)
           TOP1_DESC=$(sanitize "$TOP1_DESC")
 
-          # export outputs
           echo "login=${LOGIN}" >> "$GITHUB_OUTPUT"
           echo "avatar=${AVATAR}" >> "$GITHUB_OUTPUT"
           echo "repos=${REPOS}" >> "$GITHUB_OUTPUT"
@@ -73,7 +70,7 @@ jobs:
           echo "top1=${TOP1}" >> "$GITHUB_OUTPUT"
           echo "top1_desc=${TOP1_DESC}" >> "$GITHUB_OUTPUT"
 
-      - name: Gerar SVG (Japan Cyberpunk, preto/branco/vermelho)
+      - name: Gerar SVG (Japan Cyberpunk preto/branco/vermelho)
         run: |
           set -e
           USER="${{ github.event.inputs.usuario }}"
@@ -92,11 +89,10 @@ jobs:
           TOP1="${{ steps.dados.outputs.top1 }}"
           TOP1_DESC="${{ steps.dados.outputs.top1_desc }}"
 
-          # calcula barra (segura)
           BAR_TOTAL=360
           FILLED=$(( (XP % 1000) * BAR_TOTAL / 1000 ))
 
-          # Cria SVG com layout minimal cyberpunk japonês (preto, branco, vermelho)
+          # Cria SVG com placeholders seguros (substituiremos depois)
           cat > "japan/${USER}-card.svg" <<'SVG'
 <svg xmlns="http://www.w3.org/2000/svg" width="920" height="560" viewBox="0 0 920 560">
   <style>
@@ -111,7 +107,7 @@ jobs:
   </style>
   <rect width="100%" height="100%" class="bg" rx="28"/>
 
-  <!-- Red moon / japanese sun -->
+  <!-- Red moon -->
   <g transform="translate(720,120)">
     <circle cx="0" cy="0" r="120" class="moon"/>
     <g transform="translate(-20,-30)" fill="#fff" font-family="Noto Sans JP">
@@ -120,49 +116,46 @@ jobs:
     </g>
   </g>
 
-  <!-- Avatar (fundo branco pequeno) -->
-  <defs>
-    <clipPath id="avatarClip"><circle cx="120" cy="120" r="80"/></clipPath>
-  </defs>
+  <!-- Avatar -->
+  <defs><clipPath id="avatarClip"><circle cx="120" cy="120" r="80"/></clipPath></defs>
   <rect x="30" y="60" width="180" height="180" rx="18" fill="#111" />
-  <image href="${AVATAR_PLACEHOLDER}" x="40" y="70" width="160" height="160" clip-path="url(#avatarClip)"/>
+  <image href="__AVATAR__" x="40" y="70" width="160" height="160" clip-path="url(#avatarClip)"/>
 
-  <!-- Left texts (japanese) -->
-  <text x="240" y="110" class="title">ユーザー：${LOGIN_PLACEHOLDER}</text>
+  <!-- Textos em japonês -->
+  <text x="240" y="110" class="title">ユーザー：__LOGIN__</text>
   <text x="240" y="150" class="sub">独立 • 個人開発者</text>
-  <text x="240" y="185" class="small">リポジトリ：${REPOS_PLACEHOLDER}</text>
-  <text x="240" y="210" class="small">フォロワー：${FOLLOWERS_PLACEHOLDER}</text>
+  <text x="240" y="185" class="small">リポジトリ：__REPOS__</text>
+  <text x="240" y="210" class="small">フォロワー：__FOLLOWERS__</text>
 
-  <!-- activity -->
-  <text x="240" y="250" class="small">コミット / PR / 課題：${COMMITS_PLACEHOLDER} / ${PRS_PLACEHOLDER} / ${ISSUES_PLACEHOLDER}</text>
+  <text x="240" y="250" class="small">コミット / PR / 課題：__COMMITS__ / __PRS__ / __ISSUES__</text>
 
-  <!-- top repo -->
-  <text x="240" y="290" class="small">トップ: ${TOP1_PLACEHOLDER} — ${TOP1_DESC_PLACEHOLDER}</text>
+  <text x="240" y="290" class="small">トップ: __TOP1__ — __TOP1_DESC__</text>
 
-  <!-- XP bar -->
+  <!-- Barra de XP -->
   <rect x="60" y="340" width="360" height="18" rx="9" class="bar-bg"/>
-  <rect x="60" y="340" width="${FILLED_PLACEHOLDER}" height="18" rx="9" class="bar-fill"/>
-  <text x="240" y="380" class="mono" text-anchor="middle">LV.${LEVEL_PLACEHOLDER} • 経験値 ${XP_PLACEHOLDER}</text>
+  <rect x="60" y="340" width="__FILLED__" height="18" rx="9" class="bar-fill"/>
+  <text x="240" y="380" class="mono" text-anchor="middle">LV.__LEVEL__ • 経験値 __XP__</text>
 
-  <text x="760" y="520" class="small" text-anchor="end">${DATE_PLACEHOLDER}</text>
+  <text x="760" y="520" class="small" text-anchor="end">__DATE__</text>
 </svg>
 SVG
 
-          # Substituições seguras (uso sed, escape de /)
+          # Substituir placeholders com valores reais (seguro)
           svgfile="japan/${USER}-card.svg"
-          sed -i "s|${AVATAR_PLACEHOLDER}|${AVATAR}|g" "$svgfile"
-          sed -i "s|${LOGIN_PLACEHOLDER}|${LOGIN}|g" "$svgfile"
-          sed -i "s|${REPOS_PLACEHOLDER}|${REPOS}|g" "$svgfile"
-          sed -i "s|${FOLLOWERS_PLACEHOLDER}|${FOLLOWERS}|g" "$svgfile"
-          sed -i "s|${COMMITS_PLACEHOLDER}|${COMMITS}|g" "$svgfile"
-          sed -i "s|${PRS_PLACEHOLDER}|${PRS}|g" "$svgfile"
-          sed -i "s|${ISSUES_PLACEHOLDER}|${ISSUES}|g" "$svgfile"
-          sed -i "s|${XP_PLACEHOLDER}|${XP}|g" "$svgfile"
-          sed -i "s|${LEVEL_PLACEHOLDER}|${LEVEL}|g" "$svgfile"
-          sed -i "s|${DATE_PLACEHOLDER}|${DATE}|g" "$svgfile"
-          sed -i "s|${TOP1_PLACEHOLDER}|${TOP1}|g" "$svgfile"
-          sed -i "s|${TOP1_DESC_PLACEHOLDER}|${TOP1_DESC}|g" "$svgfile"
-          sed -i "s|${FILLED_PLACEHOLDER}|${FILLED}|g" "$svgfile"
+          sed -i "s|__AVATAR__|${AVATAR}|g" "$svgfile"
+          sed -i "s|__LOGIN__|${LOGIN}|g" "$svgfile"
+          sed -i "s|__REPOS__|${REPOS}|g" "$svgfile"
+          sed -i "s|__FOLLOWERS__|${FOLLOWERS}|g" "$svgfile"
+          sed -i "s|__COMMITS__|${COMMITS}|g" "$svgfile"
+          sed -i "s|__PRS__|${PRS}|g" "$svgfile"
+          sed -i "s|__ISSUES__|${ISSUES}|g" "$svgfile"
+          sed -i "s|__XP__|${XP}|g" "$svgfile"
+          sed -i "s|__LEVEL__|${LEVEL}|g" "$svgfile"
+          sed -i "s|__DATE__|${DATE}|g" "$svgfile"
+          sed -i "s|__TOP1__|${TOP1}|g" "$svgfile"
+          # TOP1_DESC já sanitizado no passo anterior
+          sed -i "s|__TOP1_DESC__|${TOP1_DESC}|g" "$svgfile"
+          sed -i "s|__FILLED__|${FILLED}|g" "$svgfile"
 
           echo "SVG criado: $svgfile"
 
