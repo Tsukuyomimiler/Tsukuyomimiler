@@ -216,8 +216,7 @@ class DailyLife:
   <i>Thank you for visiting my realm! May your pull requests always be mergeable and your anime queue never empty! 🌙✨</i>
   
   <br>
-  
-  ![Quote](https://quotes-github-readme.vercel.app/api?type=horizontal&theme=tokyonight)
+
 </p>
 
 ---
