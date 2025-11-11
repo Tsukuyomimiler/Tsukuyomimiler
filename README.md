@@ -221,14 +221,6 @@ class DailyLife:
 </p>
 
 ---
-
-<div align="center">
-
-### 🎉 **Currently Listening To**
-  
-[![Spotify](https://spotify-readme-theta-virid.vercel.app/api?scan=true&theme=dark)](https://open.spotify.com/user/your_profile)
-
----
   
 **"See you in the next commit!"** 🚀
 
