@@ -2,7 +2,7 @@ name: 🛡️ Card Guild (Dark Red Minimal Pro Edition)
 
 on:
   schedule:
-    - cron: '0 12 * * *'
+    - cron: '0 12 * * *' # Atualiza diariamente às 12h UTC (~9h no Brasil)
   workflow_dispatch:
     inputs:
       usuario:
@@ -24,6 +24,7 @@ permissions:
 jobs:
   gerar-svg:
     runs-on: ubuntu-latest
+
     steps:
       - name: 🧩 Checkout do repositório
         uses: actions/checkout@v4
@@ -31,61 +32,51 @@ jobs:
       - name: ⚙️ Instalar dependências
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y curl jq moreutils ca-certificates
+          sudo apt-get install -y curl jq moreutils
 
-      - name: 🔍 Buscar dados do GitHub (robusto)
+      - name: 🔍 Buscar dados do GitHub
         id: fetch-data
-        env:
-          GITHUB_API_TOKEN: ${{ secrets.GITHUB_API_TOKEN }}
         run: |
-          set -euo pipefail
-          USER="${{ github.event.inputs.usuario }}"
-          TOKEN="${GITHUB_API_TOKEN:-}"
+          # Usar input do usuário corretamente
+          if [[ -n "${{ github.event.inputs.usuario }}" ]]; then
+            USER="${{ github.event.inputs.usuario }}"
+          else
+            # Fallback para usuário padrão
+            USER="ciconha"
+          fi
+          
+          TOKEN="${{ secrets.TSUKUYOMI_CICONHA }}"
 
           echo "📡 Coletando dados do usuário: $USER"
 
-          # Função para executar curl com/sem token
-          fetch() {
-            local url="$1"
-            local out="$2"
-            if [ -n "$TOKEN" ]; then
-              curl -sS -H "Authorization: token $TOKEN" -L "$url" -o "$out"
-            else
-              curl -sS -L "$url" -o "$out"
-            fi
+          # Dados principais
+          curl -s -H "Authorization: token $TOKEN" "https://api.github.com/users/$USER" > user.json
+          curl -s -H "Authorization: token $TOKEN" "https://api.github.com/users/$USER/repos?per_page=100" > repos.json
+          curl -s -H "Authorization: token $TOKEN" "https://api.github.com/users/$USER/events?per_page=100" > events.json
+
+          sanitize() {
+            echo "$1" | iconv -c -t UTF-8//TRANSLIT | tr -d '\n' | sed 's/"/\\"/g'
           }
 
-          fetch "https://api.github.com/users/$USER" user.json || { echo "Erro: falha ao buscar user.json"; cat user.json || true; exit 5; }
-          fetch "https://api.github.com/users/$USER/repos?per_page=100" repos.json || { echo "Erro: falha ao buscar repos.json"; cat repos.json || true; exit 5; }
-          fetch "https://api.github.com/users/$USER/events?per_page=300" events.json || true
+          LOGIN=$(sanitize "$(jq -r '.login' user.json)")
+          NAME=$(sanitize "$(jq -r '.name // "Usuário Desconhecido"' user.json)")
+          BIO=$(sanitize "$(jq -r '.bio // "Desenvolvedor apaixonado por tecnologia."' user.json)")
+          REPOS=$(jq -r '.public_repos' user.json)
+          FOLLOWERS=$(jq -r '.followers' user.json)
+          COMMITS=$(jq '[.[] | select(.type == "PushEvent")] | length' events.json)
+          PRS=$(jq '[.[] | select(.type == "PullRequestEvent")] | length' events.json)
+          ISSUES=$(jq '[.[] | select(.type == "IssuesEvent")] | length' events.json)
 
-          # Valores seguros com defaults
-          LOGIN=$(jq -r '.login // ""' user.json)
-          NAME=$(jq -r '.name // ""' user.json)
-          if [ -z "$NAME" ]; then NAME="$LOGIN"; fi
-          BIO=$(jq -r '.bio // "Desenvolvedor apaixonado por tecnologia."' user.json)
-          REPOS=$(jq -r '.public_repos // 0' user.json)
-          FOLLOWERS=$(jq -r '.followers // 0' user.json)
-          AVATAR_URL=$(jq -r '.avatar_url // ""' user.json || echo "")
+          # Linguagem mais usada
+          LANG=$(jq -r '.[].language' repos.json | sort | uniq -c | sort -nr | head -1 | awk '{print $2}')
+          if [ -z "$LANG" ] || [ "$LANG" = "null" ]; then
+            LANG="Desconhecida"
+          fi
 
-          COMMITS=$(jq '[.[] | select(.type == "PushEvent")] | length' events.json 2>/dev/null || echo 0)
-          PRS=$(jq '[.[] | select(.type == "PullRequestEvent")] | length' events.json 2>/dev/null || echo 0)
-          ISSUES=$(jq '[.[] | select(.type == "IssuesEvent")] | length' events.json 2>/dev/null || echo 0)
-
-          LANG=$(jq -r '.[].language' repos.json 2>/dev/null | sort | uniq -c | sort -nr | head -1 | awk '{print $2}' || echo "Desconhecida")
-          if [ -z "$LANG" ] || [ "$LANG" = "null" ]; then LANG="Desconhecida"; fi
-
+          # XP e classificação
           TOTAL_XP=$((REPOS * 50 + FOLLOWERS * 30 + COMMITS * 2 + PRS * 10 + ISSUES * 5))
           LEVEL=$((TOTAL_XP / 1000 + 1))
           XP_PERCENTAGE=$(( (TOTAL_XP % 1000) * 100 / 1000 ))
-
-          if [ "$REPOS" -gt 100 ]; then
-            RANK="Lendário"
-          elif [ "$REPOS" -gt 50 ]; then
-            RANK="Épico"
-          else
-            RANK="Herói"
-          fi
 
           if [ "$REPOS" -gt 50 ]; then
             CLASS="Arquiteto"
@@ -97,7 +88,16 @@ jobs:
             CLASS="Aventureiro"
           fi
 
-          jq 'sort_by(-.stargazers_count) | .[0:2] | map({name: .name, stars: .stargazers_count})' repos.json > top_projects.json || echo "[]" > top_projects.json
+          if [ "$REPOS" -gt 100 ]; then
+            RANK="Lendário"
+          elif [ "$REPOS" -gt 50 ]; then
+            RANK="Épico"
+          else
+            RANK="Herói"
+          fi
+
+          # Top 2 projetos
+          jq 'sort_by(-.stargazers_count) | .[0:2] | .[] | {name: .name, stars: .stargazers_count}' repos.json > top_projects.json
 
           echo "login=$LOGIN" >> $GITHUB_OUTPUT
           echo "name=$NAME" >> $GITHUB_OUTPUT
@@ -113,89 +113,161 @@ jobs:
           echo "xp_percentage=$XP_PERCENTAGE" >> $GITHUB_OUTPUT
           echo "class=$CLASS" >> $GITHUB_OUTPUT
           echo "rank=$RANK" >> $GITHUB_OUTPUT
-          echo "avatar_url=$AVATAR_URL" >> $GITHUB_OUTPUT
 
       - name: 🎨 Gerar SVG Dark Red Minimalista
         run: |
-          set -euo pipefail
           mkdir -p cards
-          USER="${{ github.event.inputs.usuario }}"
-          NAME="${{ steps.fetch-data.outputs.name }}"
-          LOGIN="${{ steps.fetch-data.outputs.login }}"
-          BIO="${{ steps.fetch-data.outputs.bio }}"
-          REPOS="${{ steps.fetch-data.outputs.repos }}"
-          FOLLOWERS="${{ steps.fetch-data.outputs.followers }}"
-          LANG="${{ steps.fetch-data.outputs.lang }}"
-          LEVEL="${{ steps.fetch-data.outputs.level }}"
-          TOTAL_XP="${{ steps.fetch-data.outputs.total_xp }}"
-          XP_PERCENTAGE="${{ steps.fetch-data.outputs.xp_percentage }}"
-          CLASS="${{ steps.fetch-data.outputs.class }}"
-          RANK="${{ steps.fetch-data.outputs.rank }}"
-          COMMITS="${{ steps.fetch-data.outputs.commits }}"
-          PRS="${{ steps.fetch-data.outputs.prs }}"
-          ISSUES="${{ steps.fetch-data.outputs.issues }}"
+          PROJECT1_NAME=$(jq -r '.name' top_projects.json | head -1)
+          PROJECT1_STARS=$(jq -r '.stars' top_projects.json | head -1)
+          PROJECT2_NAME=$(jq -r '.name' top_projects.json | tail -1)
+          PROJECT2_STARS=$(jq -r '.stars' top_projects.json | tail -1)
+          CURRENT_DATE=$(date +'%d/%m/%Y')
+          
+          # Obter inputs do workflow
           EMPRESA="${{ github.event.inputs.empresa }}"
           CARGO="${{ github.event.inputs.cargo }}"
+          
+          # Criar arquivo SVG com design abstrato/artístico
+          SVG_FILE="cards/${{ github.event.inputs.usuario || 'ciconha' }}.svg"
+          
+          cat > "$SVG_FILE" << 'EOF'
+          <svg xmlns="http://www.w3.org/2000/svg" width="460" height="280" viewBox="0 0 460 280">
+            <defs>
+              <linearGradient id="darkRedBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#1a0000"/>
+                <stop offset="50%" stop-color="#360000"/>
+                <stop offset="100%" stop-color="#1a0000"/>
+              </linearGradient>
+              
+              <linearGradient id="redGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ff0000" stop-opacity="0.1"/>
+                <stop offset="50%" stop-color="#ff3333" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="#ff0000" stop-opacity="0.1"/>
+              </linearGradient>
+              
+              <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="2" result="blur"/>
+                <feMerge>
+                  <feMergeNode in="blur"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
+              
+              <style>
+                @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+                
+                .title {
+                  font-family: 'Orbitron', monospace;
+                  font-size: 24px;
+                  font-weight: 900;
+                  fill: #FF2222;
+                  text-shadow: 0 0 10px #FF0000;
+                }
+                
+                .subtitle {
+                  font-family: 'Orbitron', monospace;
+                  font-size: 12px;
+                  fill: #FF6666;
+                  letter-spacing: 1px;
+                }
+                
+                .text {
+                  font-family: 'Share Tech Mono', monospace;
+                  font-size: 11px;
+                  fill: #FFAAAA;
+                }
+                
+                .tech {
+                  font-family: 'Share Tech Mono', monospace;
+                  font-size: 10px;
+                  fill: #FF8888;
+                }
+                
+                .bar-bg {
+                  fill: #0a0000;
+                }
+                
+                .bar-fill {
+                  fill: url(#redGlow);
+                  filter: url(#glow);
+                }
+              </style>
+            </defs>
 
-          PROJECT1_NAME=$(jq -r '.[0].name // ""' top_projects.json)
-          PROJECT1_STARS=$(jq -r '.[0].stars // 0' top_projects.json)
-          PROJECT2_NAME=$(jq -r '.[1].name // ""' top_projects.json)
-          PROJECT2_STARS=$(jq -r '.[1].stars // 0' top_projects.json)
+            <!-- Fundo com padrão abstrato -->
+            <rect width="460" height="280" rx="15" ry="15" fill="url(#darkRedBg)" stroke="#880000" stroke-width="2"/>
+            
+            <!-- Elementos abstratos de fundo -->
+            <circle cx="50" cy="50" r="40" fill="#220000" opacity="0.3"/>
+            <circle cx="400" cy="200" r="60" fill="#330000" opacity="0.2"/>
+            <rect x="300" y="30" width="80" height="80" rx="10" transform="rotate(45 340 70)" fill="#440000" opacity="0.2"/>
+            
+            <!-- Linhas decorativas -->
+            <line x1="0" y1="80" x2="460" y2="80" stroke="#550000" stroke-width="1" opacity="0.3"/>
+            <line x1="0" y1="200" x2="460" y2="200" stroke="#550000" stroke-width="1" opacity="0.3"/>
+            
+            <!-- Cabeçalho com design futurista -->
+            <g filter="url(#glow)">
+              <text x="30" y="55" class="title">${{ steps.fetch-data.outputs.name }}</text>
+            </g>
+            
+            <text x="30" y="75" class="subtitle">[ $EMPRESA ] • { $CARGO }</text>
+            <text x="30" y="93" class="subtitle">[ ${{ steps.fetch-data.outputs.class }} ] • { ${{ steps.fetch-data.outputs.rank }} }</text>
 
-          CURRENT_DATE=$(date +'%d/%m/%Y')
-          BAR_MAX=280
-          BAR_WIDTH=$(( BAR_MAX * XP_PERCENTAGE / 100 ))
+            <!-- Bio em container estilizado -->
+            <rect x="25" y="105" width="410" height="35" rx="5" fill="#110000" opacity="0.5" stroke="#330000" stroke-width="1"/>
+            <text x="30" y="125" class="text">"${{ steps.fetch-data.outputs.bio }}"</text>
 
-          cat > cards/${USER}.svg <<EOF
-<svg xmlns="http://www.w3.org/2000/svg" width="460" height="280" viewBox="0 0 460 280">
-  <defs>
-    <linearGradient id="darkRed" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#120000"/>
-      <stop offset="100%" stop-color="#360000"/>
-    </linearGradient>
-    <style>
-      .title { font-size: 22px; font-weight: bold; fill: #FF3333; }
-      .subtitle { font-size: 13px; fill: #FF7777; }
-      .text { font-size: 11px; fill: #FFAAAA; }
-      .bar-bg { fill: #1a0000; }
-      .bar-fill { fill: #FF2222; }
-      .small { font-size: 10px; fill: #ffbfcf; }
-    </style>
-  </defs>
+            <!-- Linguagem + XP -->
+            <g transform="translate(0, 10)">
+              <rect x="25" y="150" width="200" height="60" rx="8" fill="#0a0000" opacity="0.7" stroke="#440000" stroke-width="1"/>
+              <text x="35" y="170" class="tech">⚡ TECH STACK:</text>
+              <text x="35" y="190" class="subtitle">${{ steps.fetch-data.outputs.lang }}</text>
+              
+              <rect x="235" y="150" width="200" height="60" rx="8" fill="#0a0000" opacity="0.7" stroke="#440000" stroke-width="1"/>
+              <text x="245" y="170" class="tech">🎮 PLAYER STATS:</text>
+              <text x="245" y="190" class="subtitle">LVL ${{ steps.fetch-data.outputs.level }} • XP ${{ steps.fetch-data.outputs.total_xp }}</text>
+            </g>
 
-  <rect width="460" height="280" rx="15" ry="15" fill="url(#darkRed)" stroke="#880000" stroke-width="3"/>
+            <!-- Barra de XP -->
+            <g transform="translate(0, 10)">
+              <text x="30" y="235" class="tech">PROGRESSO [ ${{ steps.fetch-data.outputs.xp_percentage }}% ]:</text>
+              <rect x="30" y="240" width="400" height="12" class="bar-bg" rx="6" ry="6"/>
+              <rect x="30" y="240" width="$((400 * ${{ steps.fetch-data.outputs.xp_percentage }} / 100))" height="12" class="bar-fill" rx="6" ry="6"/>
+            </g>
 
-  <text x="30" y="55" class="title">${NAME}</text>
-  <text x="30" y="75" class="subtitle">🏢 ${EMPRESA} • 💼 ${CARGO}</text>
-  <text x="30" y="93" class="subtitle">⚔️ ${CLASS} • 🩸 ${RANK}</text>
+            <!-- Projetos destacados -->
+            <g transform="translate(0, 30)">
+              <rect x="25" y="255" width="410" height="40" rx="5" fill="#110000" opacity="0.6" stroke="#330000" stroke-width="1"/>
+              <text x="30" y="272" class="subtitle">⭐ PROJECT HIGHLIGHTS:</text>
+              <text x="35" y="290" class="text">» $PROJECT1_NAME — ⭐$PROJECT1_STARS</text>
+              <text x="230" y="290" class="text">» $PROJECT2_NAME — ⭐$PROJECT2_STARS</text>
+            </g>
 
-  <text x="30" y="115" class="text">${BIO}</text>
+            <!-- Rodapé técnico -->
+            <g transform="translate(0, 25)">
+              <rect x="0" y="305" width="460" height="30" fill="#000000" opacity="0.8"/>
+              <text x="230" y="325" text-anchor="middle" class="tech">
+                [ $CURRENT_DATE ] • COMMITS:${{ steps.fetch-data.outputs.commits }} • PRs:${{ steps.fetch-data.outputs.prs }} • ISSUES:${{ steps.fetch-data.outputs.issues }}
+              </text>
+            </g>
+            
+            <!-- Elementos decorativos de canto -->
+            <path d="M15,15 L40,15 L15,40 Z" fill="#FF2222" opacity="0.3"/>
+            <path d="M445,15 L445,40 L420,15 Z" fill="#FF2222" opacity="0.3"/>
+            <path d="M15,265 L15,240 L40,265 Z" fill="#FF2222" opacity="0.3"/>
+            <path d="M445,265 L420,265 L445,240 Z" fill="#FF2222" opacity="0.3"/>
+          </svg>
+          EOF
 
-  <text x="30" y="140" class="text">💻 Linguagem principal: ${LANG}</text>
-  <text x="30" y="158" class="text">🏆 Nível: ${LEVEL} • XP Total: ${TOTAL_XP}</text>
-
-  <rect x="30" y="165" width="${BAR_MAX}" height="8" class="bar-bg" rx="4" ry="4"/>
-  <rect x="30" y="165" width="${BAR_WIDTH}" height="8" class="bar-fill" rx="4" ry="4"/>
-
-  <text x="30" y="195" class="subtitle">⭐ Destaques:</text>
-  <text x="30" y="215" class="text">• ${PROJECT1_NAME} — ⭐ ${PROJECT1_STARS}</text>
-  <text x="30" y="232" class="text">• ${PROJECT2_NAME} — ⭐ ${PROJECT2_STARS}</text>
-
-  <text x="230" y="265" text-anchor="middle" class="small">
-    Gerado em ${CURRENT_DATE} • ${COMMITS} commits • ${PRS} PRs • ${ISSUES} issues
-  </text>
-</svg>
-EOF
-
-          echo "✅ SVG gerado: cards/${USER}.svg"
+          echo "✅ SVG com design abstrato gerado com sucesso!"
 
       - name: 💾 Commit e Push automático
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
           git add cards/
-          git commit -m "🩸 Atualização do cartão da guilda para ${{ github.event.inputs.usuario }}" || echo "Nenhuma mudança detectada"
+          git commit -m "🎨 Atualização do cartão da guilda para ${{ github.event.inputs.usuario || 'ciconha' }}" || echo "Nenhuma mudança detectada"
           git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.TSUKUYOMI_CICONHA }}
