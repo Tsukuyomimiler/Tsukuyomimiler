@@ -1,63 +1,1225 @@
-name: "Genshin Card Maker"
+name: "🔥 METRO GOTHIC XP CARD"
 
 on:
   workflow_dispatch:
     inputs:
-      user:
-        description: 'GitHub username'
+      github_user:
+        description: 'Seu usuário do GitHub'
         required: true
         default: 'ciconha'
+      player_name:
+        description: 'Nome do Jogador/Personagem'
+        required: false
+        default: 'NEO-METRO RIDER'
+      faction:
+        description: 'Facção (CORPO, MENTE, ALMA, CAOS)'
+        required: false
+        default: 'CORPO'
+      core_type:
+        description: 'Tipo de Núcleo (QUANTUM, NEURAL, CHAOS, VOID)'
+        required: false
+        default: 'QUANTUM'
+      
+      # Customização
+      primary_color:
+        description: 'Cor Primária (hex: #FF0000)'
+        required: false
+        default: '#00FFAA'
+      secondary_color:
+        description: 'Cor Secundária (hex: #00FF00)'
+        required: false
+        default: '#FF00FF'
+      glow_color:
+        description: 'Cor do Brilho (hex: #0000FF)'
+        required: false
+        default: '#00FFFF'
 
 permissions:
   contents: write
 
 jobs:
-  make-card:
+  create-metro-card:
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v4
+      - name: 🏗️ CHECKOUT DIMENSIONAL
+        uses: actions/checkout@v4
       
-      - run: mkdir -p cards
-      
-      - name: Make SVG
+      - name: ⚙️ INSTALAR NÚCLEOS
         run: |
-          USER="${{ github.event.inputs.user }}"
-          DATE=$(date +'%Y-%m-%d')
-          FILE="cards/${USER}.svg"
+          sudo apt-get update -y
+          sudo apt-get install -y curl jq bc imagemagick
+          echo "✅ Núcleos instalados"
+      
+      - name: 🔮 SCAN GITHUB MATRIX
+        id: scan-matrix
+        env:
+          MATRIX_TOKEN: ${{ secrets.Ciconha_tsukuyomi }}
+        run: |
+          USER="${{ github.event.inputs.github_user }}"
+          echo "🔍 SCANEANDO MATRIX: $USER"
           
-          cat > "$FILE" << EOF
-          <svg width="400" height="200" xmlns="http://www.w3.org/2000/svg">
-            <rect width="400" height="200" fill="#0f0f23" rx="10"/>
-            <rect x="20" y="20" width="360" height="160" fill="#1a1a2e" rx="10"/>
+          # Dados base sempre funcionam
+          AVATAR_URL="https://avatars.githubusercontent.com/u/583231?v=4"
+          BIO_MATRIX="SYSTEM OVERRIDER | DIGITAL GHOST"
+          REPO_COUNT=0
+          FOLLOWER_COUNT=0
+          STAR_TOTAL=0
+          CONTRIB_TOTAL=0
+          
+          # Tentar API com token
+          if [ -n "$MATRIX_TOKEN" ] && [ "$MATRIX_TOKEN" != "" ]; then
+            echo "🛰️  Conectando à API..."
             
-            <text x="40" y="60" font-family="Arial" font-size="24" fill="white">$USER</text>
-            <text x="40" y="90" font-family="Arial" font-size="14" fill="#00b4d8">Genshin Developer</text>
+            # Usuário
+            curl -s -H "Authorization: token $MATRIX_TOKEN" \
+                 "https://api.github.com/users/$USER" > user_matrix.json 2>/dev/null || true
             
-            <g transform="translate(40, 120)">
-              <rect width="80" height="40" rx="5" fill="#252547"/>
-              <text x="40" y="25" text-anchor="middle" font-family="Arial" font-size="12" fill="#ccc">Level</text>
-              <text x="40" y="45" text-anchor="middle" font-family="Arial" font-size="16" fill="white">42</text>
+            if [ -s user_matrix.json ] && jq -e '.login' user_matrix.json >/dev/null 2>&1; then
+              echo "✅ Matriz de usuário encontrada"
               
-              <rect x="100" width="80" height="40" rx="5" fill="#252547"/>
-              <text x="140" y="25" text-anchor="middle" font-family="Arial" font-size="12" fill="#ccc">Rank</text>
-              <text x="140" y="45" text-anchor="middle" font-family="Arial" font-size="16" fill="#FFD700">S</text>
+              # Avatar
+              AVATAR_TEMP=$(jq -r '.avatar_url // ""' user_matrix.json)
+              if [ -n "$AVATAR_TEMP" ] && [ "$AVATAR_TEMP" != "null" ]; then
+                AVATAR_URL=$(echo "$AVATAR_TEMP" | sed 's/\?.*//; s/$/?size=400/')
+              fi
               
-              <rect x="200" width="80" height="40" rx="5" fill="#252547"/>
-              <text x="240" y="25" text-anchor="middle" font-family="Arial" font-size="12" fill="#ccc">XP</text>
-              <text x="240" y="45" text-anchor="middle" font-family="Arial" font-size="16" fill="white">9999</text>
+              # Bio
+              BIO_RAW=$(jq -r '.bio // ""' user_matrix.json)
+              if [ -n "$BIO_RAW" ] && [ "$BIO_RAW" != "null" ]; then
+                BIO_MATRIX=$(echo "$BIO_RAW" | sed 's/"/ /g; s/'\''/ /g; s/\\n/ | /g' | tr -d '\n\r' | head -c 120)
+              fi
+              
+              # Stats
+              REPO_COUNT=$(jq -r '.public_repos // 0' user_matrix.json)
+              FOLLOWER_COUNT=$(jq -r '.followers // 0' user_matrix.json)
+              
+              # Repositórios para estrelas
+              curl -s -H "Authorization: token $MATRIX_TOKEN" \
+                   "https://api.github.com/users/$USER/repos?per_page=100" > repos_matrix.json 2>/dev/null || true
+              
+              if [ -s repos_matrix.json ]; then
+                STAR_TOTAL=$(jq '[.[].stargazers_count // 0] | add' repos_matrix.json 2>/dev/null || echo "0")
+                CONTRIB_TOTAL=$(jq '[.[].forks_count // 0] | add' repos_matrix.json 2>/dev/null || echo "0")
+                
+                # Top 5 projetos
+                jq '[.[] | sort_by(-.stargazers_count) | .[0:5] | .[] | {name: (.name // "VOID"), stars: (.stargazers_count // 0), forks: (.forks_count // 0), lang: (.language // "BINARY")}]' \
+                   repos_matrix.json > top_projects.json 2>/dev/null || echo '[]' > top_projects.json
+              fi
+              
+              # Eventos para commits
+              curl -s -H "Authorization: token $MATRIX_TOKEN" \
+                   "https://api.github.com/users/$USER/events?per_page=100" > events_matrix.json 2>/dev/null || true
+              
+              if [ -s events_matrix.json ]; then
+                COMMIT_COUNT=$(jq '[.[] | select(.type == "PushEvent")] | length' events_matrix.json 2>/dev/null || echo "0")
+                PR_COUNT=$(jq '[.[] | select(.type == "PullRequestEvent")] | length' events_matrix.json 2>/dev/null || echo "0")
+                ISSUE_COUNT=$(jq '[.[] | select(.type == "IssuesEvent")] | length' events_matrix.json 2>/dev/null || echo "0")
+              else
+                COMMIT_COUNT=0
+                PR_COUNT=0
+                ISSUE_COUNT=0
+              fi
+              
+            else
+              echo "⚠️  Matriz inacessível, usando dados padrão"
+            fi
+          else
+            echo "⚠️  Sem token, usando matriz pública"
+            # Dados públicos mínimos
+            curl -s "https://api.github.com/users/$USER" > user_matrix.json 2>/dev/null || true
+            
+            if [ -s user_matrix.json ] && jq -e '.login' user_matrix.json >/dev/null 2>&1; then
+              AVATAR_TEMP=$(jq -r '.avatar_url // ""' user_matrix.json)
+              if [ -n "$AVATAR_TEMP" ] && [ "$AVATAR_TEMP" != "null" ]; then
+                AVATAR_URL=$(echo "$AVATAR_TEMP" | sed 's/\?.*//; s/$/?size=400/')
+              fi
+              
+              BIO_RAW=$(jq -r '.bio // ""' user_matrix.json)
+              if [ -n "$BIO_RAW" ] && [ "$BIO_RAW" != "null" ]; then
+                BIO_MATRIX=$(echo "$BIO_RAW" | sed 's/"/ /g; s/'\''/ /g' | head -c 80)
+              fi
+              
+              REPO_COUNT=$(jq -r '.public_repos // 0' user_matrix.json)
+              FOLLOWER_COUNT=$(jq -r '.followers // 0' user_matrix.json)
+            fi
+          fi
+          
+          # Garantir valores
+          [ -z "$REPO_COUNT" ] && REPO_COUNT=0
+          [ -z "$FOLLOWER_COUNT" ] && FOLLOWER_COUNT=0
+          [ -z "$STAR_TOTAL" ] && STAR_TOTAL=0
+          [ -z "$CONTRIB_TOTAL" ] && CONTRIB_TOTAL=0
+          [ -z "$COMMIT_COUNT" ] && COMMIT_COUNT=0
+          [ -z "$PR_COUNT" ] && PR_COUNT=0
+          [ -z "$ISSUE_COUNT" ] && ISSUE_COUNT=0
+          [ -z "$BIO_MATRIX" ] && BIO_MATRIX="SYSTEM OVERRIDER | DIGITAL GHOST"
+          
+          # 🎮 SISTEMA DE XP COMPLEXO METRO GOTHIC
+          # XP = (repos * 150) + (followers * 75) + (stars * 25) + (forks * 15) + (commits * 5) + (prs * 20) + (issues * 10)
+          XP_REPO=$((REPO_COUNT * 150))
+          XP_FOLLOWER=$((FOLLOWER_COUNT * 75))
+          XP_STAR=$((STAR_TOTAL * 25))
+          XP_FORK=$((CONTRIB_TOTAL * 15))
+          XP_COMMIT=$((COMMIT_COUNT * 5))
+          XP_PR=$((PR_COUNT * 20))
+          XP_ISSUE=$((ISSUE_COUNT * 10))
+          
+          TOTAL_XP=$((XP_REPO + XP_FOLLOWER + XP_STAR + XP_FORK + XP_COMMIT + XP_PR + XP_ISSUE))
+          
+          # XP mínimo 1000 para ter algum progresso
+          if [ $TOTAL_XP -lt 1000 ]; then
+            TOTAL_XP=1000
+          fi
+          
+          # 🏆 SISTEMA DE NÍVEL EXPONENCIAL (nível máximo 999)
+          # Fórmula: nível = floor(log2(XP/1000 + 1)) + 1
+          if [ $TOTAL_XP -gt 0 ]; then
+            # Usar bc para cálculo preciso
+            XP_RATIO=$(echo "scale=10; $TOTAL_XP / 1000" | bc)
+            LOG_RATIO=$(echo "l($XP_RATIO + 1) / l(2)" | bc -l)
+            LEVEL=$(printf "%.0f" "$LOG_RATIO")
+            LEVEL=$((LEVEL + 1))
+          else
+            LEVEL=1
+          fi
+          
+          # Limitar nível 1-999
+          if [ $LEVEL -lt 1 ]; then LEVEL=1; fi
+          if [ $LEVEL -gt 999 ]; then LEVEL=999; fi
+          
+          # 📊 BARRA DE XP PARA PRÓXIMO NÍVEL
+          # XP necessário para próximo nível = 1000 * (2^(nível-1))
+          XP_NEEDED=$(echo "1000 * (2 ^ ($LEVEL - 1))" | bc)
+          XP_CURRENT=$((TOTAL_XP % XP_NEEDED))
+          
+          # Se for nível máximo, mostrar 100%
+          if [ $LEVEL -eq 999 ]; then
+            XP_PERCENT=100
+            XP_CURRENT=$XP_NEEDED
+          else
+            XP_PERCENT=$(echo "scale=0; 100 * $XP_CURRENT / $XP_NEEDED" | bc)
+          fi
+          
+          # Garantir percentual válido
+          if [ $XP_PERCENT -gt 100 ]; then XP_PERCENT=100; fi
+          if [ $XP_PERCENT -lt 0 ]; then XP_PERCENT=0; fi
+          
+          # 🏅 SISTEMA DE RANKING COMPLEXO
+          # Baseado em múltiplos fatores
+          RANK_SCORE=$((LEVEL * 10 + REPO_COUNT + FOLLOWER_COUNT / 10 + STAR_TOTAL / 100))
+          
+          if [ $RANK_SCORE -ge 10000 ]; then RANK="Ω"       # Omega
+          elif [ $RANK_SCORE -ge 8000 ]; then RANK="Σ"      # Sigma
+          elif [ $RANK_SCORE -ge 6000 ]; then RANK="Δ"      # Delta
+          elif [ $RANK_SCORE -ge 4000 ]; then RANK="Γ"      # Gamma
+          elif [ $RANK_SCORE -ge 2000 ]; then RANK="Β"      # Beta
+          elif [ $RANK_SCORE -ge 1000 ]; then RANK="Α"      # Alpha
+          elif [ $RANK_SCORE -ge 500 ]; then RANK="S"
+          elif [ $RANK_SCORE -ge 250 ]; then RANK="A"
+          elif [ $RANK_SCORE -ge 100 ]; then RANK="B"
+          elif [ $RANK_SCORE -ge 50 ]; then RANK="C"
+          elif [ $RANK_SCORE -ge 20 ]; then RANK="D"
+          else RANK="E"
+          fi
+          
+          # 🎨 CORES DINÂMICAS BASEADAS NO RANK
+          case "$RANK" in
+            "Ω") RANK_COLOR="#FF00FF"; RANK_GLOW="#FF00FF" ;;
+            "Σ") RANK_COLOR="#00FFFF"; RANK_GLOW="#00FFFF" ;;
+            "Δ") RANK_COLOR="#FFFF00"; RANK_GLOW="#FFFF00" ;;
+            "Γ") RANK_COLOR="#00FF00"; RANK_GLOW="#00FF00" ;;
+            "Β") RANK_COLOR="#FF4500"; RANK_GLOW="#FF4500" ;;
+            "Α") RANK_COLOR="#FF0000"; RANK_GLOW="#FF0000" ;;
+            "S") RANK_COLOR="#FFD700"; RANK_GLOW="#FFA500" ;;
+            "A") RANK_COLOR="#FF6B6B"; RANK_GLOW="#FF3333" ;;
+            "B") RANK_COLOR="#4ECDC4"; RANK_GLOW="#26A69A" ;;
+            "C") RANK_COLOR="#FFD166"; RANK_GLOW="#FFB347" ;;
+            "D") RANK_COLOR="#A0A0A0"; RANK_GLOW="#808080" ;;
+            *)   RANK_COLOR="#606060"; RANK_GLOW="#404040" ;;
+          esac
+          
+          # 🔥 CORES PERSONALIZADAS DO USUÁRIO
+          PRIMARY_COLOR="${{ github.event.inputs.primary_color }}"
+          SECONDARY_COLOR="${{ github.event.inputs.secondary_color }}"
+          GLOW_COLOR="${{ github.event.inputs.glow_color }}"
+          
+          # Validação de cores hex
+          if ! echo "$PRIMARY_COLOR" | grep -q "^#[0-9A-Fa-f]\{6\}$"; then
+            PRIMARY_COLOR="#00FFAA"
+          fi
+          if ! echo "$SECONDARY_COLOR" | grep -q "^#[0-9A-Fa-f]\{6\}$"; then
+            SECONDARY_COLOR="#FF00FF"
+          fi
+          if ! echo "$GLOW_COLOR" | grep -q "^#[0-9A-Fa-f]\{6\}$"; then
+            GLOW_COLOR="#00FFFF"
+          fi
+          
+          # 📊 CÁLCULO DE ESTATÍSTICAS EXTRAS
+          # Eficiência = (commits + prs) / (repos + 1)
+          if [ $REPO_COUNT -gt 0 ]; then
+            EFFICIENCY=$(echo "scale=1; ($COMMIT_COUNT + $PR_COUNT) / ($REPO_COUNT + 1)" | bc)
+          else
+            EFFICIENCY=0
+          fi
+          
+          # Atividade = média de eventos por dia (assumindo 30 dias)
+          ACTIVITY_SCORE=$(( (COMMIT_COUNT + PR_COUNT + ISSUE_COUNT) / 30 ))
+          
+          # Impacto = stars + forks * 2
+          IMPACT_SCORE=$((STAR_TOTAL + CONTRIB_TOTAL * 2))
+          
+          # Outputs
+          echo "avatar_url=$AVATAR_URL" >> $GITHUB_OUTPUT
+          echo "bio_matrix=$BIO_MATRIX" >> $GITHUB_OUTPUT
+          echo "repo_count=$REPO_COUNT" >> $GITHUB_OUTPUT
+          echo "follower_count=$FOLLOWER_COUNT" >> $GITHUB_OUTPUT
+          echo "star_total=$STAR_TOTAL" >> $GITHUB_OUTPUT
+          echo "fork_total=$CONTRIB_TOTAL" >> $GITHUB_OUTPUT
+          echo "commit_count=$COMMIT_COUNT" >> $GITHUB_OUTPUT
+          echo "pr_count=$PR_COUNT" >> $GITHUB_OUTPUT
+          echo "issue_count=$ISSUE_COUNT" >> $GITHUB_OUTPUT
+          echo "total_xp=$TOTAL_XP" >> $GITHUB_OUTPUT
+          echo "level=$LEVEL" >> $GITHUB_OUTPUT
+          echo "xp_percent=$XP_PERCENT" >> $GITHUB_OUTPUT
+          echo "rank=$RANK" >> $GITHUB_OUTPUT
+          echo "rank_color=$RANK_COLOR" >> $GITHUB_OUTPUT
+          echo "rank_glow=$RANK_GLOW" >> $GITHUB_OUTPUT
+          echo "primary_color=$PRIMARY_COLOR" >> $GITHUB_OUTPUT
+          echo "secondary_color=$SECONDARY_COLOR" >> $GITHUB_OUTPUT
+          echo "glow_color=$GLOW_COLOR" >> $GITHUB_OUTPUT
+          echo "efficiency=$EFFICIENCY" >> $GITHUB_OUTPUT
+          echo "activity_score=$ACTIVITY_SCORE" >> $GITHUB_OUTPUT
+          echo "impact_score=$IMPACT_SCORE" >> $GITHUB_OUTPUT
+          
+          echo "⚡ MATRIX SCAN COMPLETE"
+          echo "🎮 LEVEL: $LEVEL"
+          echo "⭐ RANK: $RANK ($RANK_SCORE)"
+          echo "📊 XP: $TOTAL_XP ($XP_PERCENT%)"
+          echo "🔥 EFFICIENCY: $EFFICIENCY"
+          echo "💥 IMPACT: $IMPACT_SCORE"
+      
+      - name: 🏭 CRIAR DIRETÓRIO MATRIX
+        run: |
+          mkdir -p cards
+          echo "📁 Diretório Matrix pronto"
+      
+      - name: 🎨 GERAR CARD METRO GOTHIC
+        run: |
+          # Dados da Matrix
+          AVATAR_URL="${{ steps.scan-matrix.outputs.avatar_url }}"
+          BIO_MATRIX="${{ steps.scan-matrix.outputs.bio_matrix }}"
+          REPO_COUNT="${{ steps.scan-matrix.outputs.repo_count }}"
+          FOLLOWER_COUNT="${{ steps.scan-matrix.outputs.follower_count }}"
+          STAR_TOTAL="${{ steps.scan-matrix.outputs.star_total }}"
+          FORK_TOTAL="${{ steps.scan-matrix.outputs.fork_total }}"
+          COMMIT_COUNT="${{ steps.scan-matrix.outputs.commit_count }}"
+          PR_COUNT="${{ steps.scan-matrix.outputs.pr_count }}"
+          ISSUE_COUNT="${{ steps.scan-matrix.outputs.issue_count }}"
+          TOTAL_XP="${{ steps.scan-matrix.outputs.total_xp }}"
+          LEVEL="${{ steps.scan-matrix.outputs.level }}"
+          XP_PERCENT="${{ steps.scan-matrix.outputs.xp_percent }}"
+          RANK="${{ steps.scan-matrix.outputs.rank }}"
+          RANK_COLOR="${{ steps.scan-matrix.outputs.rank_color }}"
+          RANK_GLOW="${{ steps.scan-matrix.outputs.rank_glow }}"
+          PRIMARY_COLOR="${{ steps.scan-matrix.outputs.primary_color }}"
+          SECONDARY_COLOR="${{ steps.scan-matrix.outputs.secondary_color }}"
+          GLOW_COLOR="${{ steps.scan-matrix.outputs.glow_color }}"
+          EFFICIENCY="${{ steps.scan-matrix.outputs.efficiency }}"
+          ACTIVITY_SCORE="${{ steps.scan-matrix.outputs.activity_score }}"
+          IMPACT_SCORE="${{ steps.scan-matrix.outputs.impact_score }}"
+          
+          # Inputs do usuário
+          PLAYER_NAME="${{ github.event.inputs.player_name }}"
+          if [ -z "$PLAYER_NAME" ] || [ "$PLAYER_NAME" = "null" ]; then
+            PLAYER_NAME="${{ github.event.inputs.github_user }}"
+          fi
+          
+          FACTION="${{ github.event.inputs.faction }}"
+          CORE_TYPE="${{ github.event.inputs.core_type }}"
+          
+          # Data e hora
+          MATRIX_DATE=$(date +'%Y.%m.%d')
+          MATRIX_TIME=$(date +'%H:%M:%S')
+          UNIX_TIME=$(date +%s)
+          
+          # Nome do arquivo
+          SAFE_NAME=$(echo "$PLAYER_NAME" | tr ' ' '_' | tr -cd '[:alnum:]_-')
+          if [ -z "$SAFE_NAME" ]; then
+            SAFE_NAME="metro_card"
+          fi
+          SVG_FILE="cards/${SAFE_NAME}_${UNIX_TIME}.svg"
+          
+          # Projetos top
+          PROJECT_DATA='[
+            {"name": "VOID-CORE", "stars": "0", "forks": "0", "lang": "BINARY"},
+            {"name": "NEURAL-NET", "stars": "0", "forks": "0", "lang": "SYNTAX"},
+            {"name": "QUANTUM-DB", "stars": "0", "forks": "0", "lang": "QUERY"},
+            {"name": "CHAOS-ENGINE", "stars": "0", "forks": "0", "lang": "FUZZY"},
+            {"name": "MATRIX-API", "stars": "0", "forks": "0", "lang": "REST"}
+          ]'
+          
+          if [ -f top_projects.json ] && [ -s top_projects.json ]; then
+            PROJECT_DATA=$(cat top_projects.json)
+          fi
+          
+          # Parse projetos
+          PROJECT1_NAME=$(echo "$PROJECT_DATA" | jq -r '.[0].name // "VOID-CORE"' | head -c 12)
+          PROJECT1_STARS=$(echo "$PROJECT_DATA" | jq -r '.[0].stars // 0')
+          PROJECT1_FORKS=$(echo "$PROJECT_DATA" | jq -r '.[0].forks // 0')
+          PROJECT1_LANG=$(echo "$PROJECT_DATA" | jq -r '.[0].lang // "BINARY"' | head -c 8)
+          
+          PROJECT2_NAME=$(echo "$PROJECT_DATA" | jq -r '.[1].name // "NEURAL-NET"' | head -c 12)
+          PROJECT2_STARS=$(echo "$PROJECT_DATA" | jq -r '.[1].stars // 0')
+          PROJECT2_FORKS=$(echo "$PROJECT_DATA" | jq -r '.[1].forks // 0')
+          PROJECT2_LANG=$(echo "$PROJECT_DATA" | jq -r '.[1].lang // "SYNTAX"' | head -c 8)
+          
+          PROJECT3_NAME=$(echo "$PROJECT_DATA" | jq -r '.[2].name // "QUANTUM-DB"' | head -c 12)
+          PROJECT3_STARS=$(echo "$PROJECT_DATA" | jq -r '.[2].stars // 0')
+          PROJECT3_FORKS=$(echo "$PROJECT_DATA" | jq -r '.[2].forks // 0')
+          PROJECT3_LANG=$(echo "$PROJECT_DATA" | jq -r '.[2].lang // "QUERY"' | head -c 8)
+          
+          PROJECT4_NAME=$(echo "$PROJECT_DATA" | jq -r '.[3].name // "CHAOS-ENGINE"' | head -c 12)
+          PROJECT4_STARS=$(echo "$PROJECT_DATA" | jq -r '.[3].stars // 0')
+          PROJECT4_FORKS=$(echo "$PROJECT_DATA" | jq -r '.[3].forks // 0')
+          PROJECT4_LANG=$(echo "$PROJECT_DATA" | jq -r '.[3].lang // "FUZZY"' | head -c 8)
+          
+          PROJECT5_NAME=$(echo "$PROJECT_DATA" | jq -r '.[4].name // "MATRIX-API"' | head -c 12)
+          PROJECT5_STARS=$(echo "$PROJECT_DATA" | jq -r '.[4].stars // 0')
+          PROJECT5_FORKS=$(echo "$PROJECT_DATA" | jq -r '.[4].forks // 0')
+          PROJECT5_LANG=$(echo "$PROJECT_DATA" | jq -r '.[4].lang // "REST"' | head -c 8)
+          
+          # Calcular barras
+          BAR_XP_WIDTH=$((400 * XP_PERCENT / 100))
+          BAR_EFF_WIDTH=$((100 * EFFICIENCY / 10))
+          if [ $BAR_EFF_WIDTH -gt 100 ]; then BAR_EFF_WIDTH=100; fi
+          BAR_ACT_WIDTH=$((100 * ACTIVITY_SCORE / 10))
+          if [ $BAR_ACT_WIDTH -gt 100 ]; then BAR_ACT_WIDTH=100; fi
+          BAR_IMP_WIDTH=$((100 * IMPACT_SCORE / 1000))
+          if [ $BAR_IMP_WIDTH -gt 100 ]; then BAR_IMP_WIDTH=100; fi
+          
+          # Função de escape ultra segura
+          matrix_escape() {
+            echo "$1" | sed \
+              -e 's/&/\&amp;/g' \
+              -e 's/</\&lt;/g' \
+              -e 's/>/\&gt;/g' \
+              -e 's/"/\&quot;/g' \
+              -e "s/'/\&apos;/g" \
+              -e 's/\\//g' \
+              -e 's/\x0//g' | tr -d '\n\r\t\0' | head -c 50
+          }
+          
+          # Escapar tudo
+          PLAYER_ESC=$(matrix_escape "$PLAYER_NAME")
+          FACTION_ESC=$(matrix_escape "$FACTION")
+          CORE_ESC=$(matrix_escape "$CORE_TYPE")
+          BIO_ESC=$(matrix_escape "$BIO_MATRIX")
+          
+          P1_NAME_ESC=$(matrix_escape "$PROJECT1_NAME")
+          P1_LANG_ESC=$(matrix_escape "$PROJECT1_LANG")
+          P2_NAME_ESC=$(matrix_escape "$PROJECT2_NAME")
+          P2_LANG_ESC=$(matrix_escape "$PROJECT2_LANG")
+          P3_NAME_ESC=$(matrix_escape "$PROJECT3_NAME")
+          P3_LANG_ESC=$(matrix_escape "$PROJECT3_LANG")
+          P4_NAME_ESC=$(matrix_escape "$PROJECT4_NAME")
+          P4_LANG_ESC=$(matrix_escape "$PROJECT4_LANG")
+          P5_NAME_ESC=$(matrix_escape "$PROJECT5_NAME")
+          P5_LANG_ESC=$(matrix_escape "$PROJECT5_LANG")
+          
+          # GERAR SVG METRO GOTHIC INSANO
+          cat > "$SVG_FILE" << 'EOF'
+          <svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000">
+          <defs>
+            <!-- FONTES CYBER -->
+            <style>
+              @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&family=Share+Tech+Mono&display=swap');
+              
+              .metro-title {
+                font-family: 'Orbitron', monospace;
+                font-size: 36px;
+                font-weight: 900;
+                fill: 
+EOF
+          
+          echo "$PRIMARY_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+                ;
+                text-shadow: 0 0 10px 
+EOF
+          
+          echo "$GLOW_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+                , 0 0 20px 
+EOF
+          
+          echo "$GLOW_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+                ;
+                letter-spacing: 2px;
+              }
+              
+              .metro-subtitle {
+                font-family: 'Rajdhani', sans-serif;
+                font-size: 18px;
+                font-weight: 600;
+                fill: 
+EOF
+          
+          echo "$SECONDARY_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+                ;
+                letter-spacing: 1px;
+              }
+              
+              .metro-label {
+                font-family: 'Share Tech Mono', monospace;
+                font-size: 12px;
+                fill: #AAAAAA;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+              }
+              
+              .metro-value {
+                font-family: 'Orbitron', monospace;
+                font-size: 20px;
+                font-weight: 700;
+                fill: white;
+              }
+              
+              .metro-rank {
+                font-family: 'Orbitron', monospace;
+                font-size: 64px;
+                font-weight: 900;
+                fill: 
+EOF
+          
+          echo "$RANK_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+                ;
+                text-shadow: 0 0 15px 
+EOF
+          
+          echo "$RANK_GLOW" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+                , 0 0 30px 
+EOF
+          
+          echo "$RANK_GLOW" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+                ;
+              }
+              
+              .metro-xp {
+                font-family: 'Share Tech Mono', monospace;
+                font-size: 14px;
+                fill: #CCCCCC;
+              }
+              
+              .metro-project {
+                font-family: 'Rajdhani', sans-serif;
+                font-size: 11px;
+                fill: #DDDDDD;
+              }
+              
+              .metro-bio {
+                font-family: 'Share Tech Mono', monospace;
+                font-size: 10px;
+                fill: #BBBBBB;
+                line-height: 1.3;
+              }
+            </style>
+            
+            <!-- GRADIENTES METRO -->
+            <linearGradient id="metroBg" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#0A0A0A"/>
+              <stop offset="50%" stop-color="#111111"/>
+              <stop offset="100%" stop-color="#0A0A0A"/>
+            </linearGradient>
+            
+            <linearGradient id="primaryGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="
+EOF
+          
+          echo "$PRIMARY_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              " stop-opacity="0.7"/>
+              <stop offset="50%" stop-color="
+EOF
+          
+          echo "$SECONDARY_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              " stop-opacity="0.9"/>
+              <stop offset="100%" stop-color="
+EOF
+          
+          echo "$PRIMARY_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              " stop-opacity="0.7"/>
+            </linearGradient>
+            
+            <linearGradient id="xpBarGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="
+EOF
+          
+          echo "$PRIMARY_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              "/>
+              <stop offset="50%" stop-color="
+EOF
+          
+          echo "$GLOW_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              "/>
+              <stop offset="100%" stop-color="
+EOF
+          
+          echo "$SECONDARY_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              "/>
+            </linearGradient>
+            
+            <!-- PADRÕES DE GRADE METRO -->
+            <pattern id="gridPattern" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="
+EOF
+          
+          echo "$PRIMARY_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              " stroke-width="0.5" opacity="0.3"/>
+            </pattern>
+            
+            <pattern id="circuitPattern" width="100" height="100" patternUnits="userSpaceOnUse">
+              <circle cx="50" cy="50" r="2" fill="
+EOF
+          
+          echo "$SECONDARY_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              " opacity="0.2"/>
+              <path d="M20,50 H80 M50,20 V80" stroke="
+EOF
+          
+          echo "$PRIMARY_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              " stroke-width="0.3" opacity="0.1" fill="none"/>
+            </pattern>
+            
+            <!-- FILTROS DE EFEITO -->
+            <filter id="metroGlow">
+              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feMerge>
+                <feMergeNode in="blur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+            
+            <filter id="neonGlow">
+              <feGaussianBlur stdDeviation="5" result="blur"/>
+              <feFlood flood-color="
+EOF
+          
+          echo "$GLOW_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              " flood-opacity="0.5"/>
+              <feComposite in2="blur" operator="in"/>
+              <feMerge>
+                <feMergeNode in="blur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+            
+            <!-- MÁSCARA PARA BARRAS -->
+            <clipPath id="barClip">
+              <rect x="0" y="0" width="400" height="20" rx="10"/>
+            </clipPath>
+          </defs>
+          
+          <!-- FUNDO METRO -->
+          <rect width="800" height="1000" fill="url(#metroBg)"/>
+          <rect width="800" height="1000" fill="url(#gridPattern)" opacity="0.1"/>
+          <rect width="800" height="1000" fill="url(#circuitPattern)" opacity="0.05"/>
+          
+          <!-- ELEMENTOS DE FUNDO DINÂMICOS -->
+          <circle cx="100" cy="150" r="60" fill="
+EOF
+          
+          echo "$PRIMARY_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+          " opacity="0.05" filter="url(#metroGlow)"/>
+          <circle cx="700" cy="800" r="80" fill="
+EOF
+          
+          echo "$SECONDARY_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+          " opacity="0.05" filter="url(#metroGlow)"/>
+          <rect x="300" y="400" width="200" height="200" rx="20" transform="rotate(45 400 500)" fill="
+EOF
+          
+          echo "$GLOW_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+          " opacity="0.03"/>
+          
+          <!-- CARD PRINCIPAL -->
+          <g filter="url(#neonGlow)">
+            <rect x="50" y="50" width="700" height="900" rx="30" fill="#111111" opacity="0.95" stroke="
+EOF
+          
+          echo "$PRIMARY_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+          " stroke-width="3"/>
+          </g>
+          
+          <!-- CABEÇALHO METRO -->
+          <rect x="50" y="50" width="700" height="120" rx="30" fill="url(#primaryGrad)" opacity="0.8"/>
+          <rect x="50" y="50" width="700" height="120" rx="30" fill="none" stroke="
+EOF
+          
+          echo "$GLOW_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+          " stroke-width="2" opacity="0.6"/>
+          
+          <!-- NOME DO JOGADOR -->
+          <text x="400" y="110" text-anchor="middle" class="metro-title">
+EOF
+          
+          echo "$PLAYER_ESC" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+          </text>
+          
+          <!-- FACÇÃO E NÚCLEO -->
+          <text x="400" y="140" text-anchor="middle" class="metro-subtitle">
+EOF
+          
+          echo "$FACTION_ESC • $CORE_ESC CORE" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+          </text>
+          
+          <!-- SEÇÃO DE STATUS PRINCIPAL -->
+          <g transform="translate(100, 200)">
+            <!-- NÍVEL -->
+            <rect x="0" y="0" width="180" height="80" rx="15" fill="#1A1A1A" opacity="0.9"/>
+            <rect x="0" y="0" width="180" height="80" rx="15" fill="none" stroke="
+EOF
+          
+          echo "$PRIMARY_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+          " stroke-width="2" opacity="0.5"/>
+            <text x="90" y="30" text-anchor="middle" class="metro-label">NÍVEL</text>
+            <text x="90" y="60" text-anchor="middle" class="metro-value">
+EOF
+          
+          echo "$LEVEL" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+            </text>
+            
+            <!-- RANK -->
+            <rect x="200" y="0" width="180" height="80" rx="15" fill="#1A1A1A" opacity="0.9"/>
+            <rect x="200" y="0" width="180" height="80" rx="15" fill="none" stroke="
+EOF
+          
+          echo "$RANK_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+          " stroke-width="2" opacity="0.7"/>
+            <text x="290" y="30" text-anchor="middle" class="metro-label">RANK</text>
+            <text x="290" y="70" text-anchor="middle" class="metro-rank">
+EOF
+          
+          echo "$RANK" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+            </text>
+            
+            <!-- XP TOTAL -->
+            <rect x="400" y="0" width="180" height="80" rx="15" fill="#1A1A1A" opacity="0.9"/>
+            <rect x="400" y="0" width="180" height="80" rx="15" fill="none" stroke="
+EOF
+          
+          echo "$SECONDARY_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+          " stroke-width="2" opacity="0.5"/>
+            <text x="490" y="30" text-anchor="middle" class="metro-label">XP TOTAL</text>
+            <text x="490" y="60" text-anchor="middle" class="metro-value">
+EOF
+          
+          echo "$TOTAL_XP" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+            </text>
+          </g>
+          
+          <!-- BARRA DE XP MEGA -->
+          <g transform="translate(100, 300)">
+            <text x="0" y="0" class="metro-label">EXPERIÊNCIA MATRIX</text>
+            <text x="400" y="0" class="metro-xp" text-anchor="end">
+EOF
+          
+          echo "$XP_PERCENT% • $XP_CURRENT/$XP_NEEDED XP" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+            </text>
+            
+            <!-- BARRA DE FUNDO -->
+            <rect x="0" y="20" width="400" height="30" rx="15" fill="#0A0A0A"/>
+            <rect x="0" y="20" width="400" height="30" rx="15" fill="none" stroke="#333333" stroke-width="2"/>
+            
+            <!-- BARRA DE XP ANIMADA -->
+            <rect x="0" y="20" width="
+EOF
+          
+          echo "$BAR_XP_WIDTH" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+            " height="30" rx="15" fill="url(#xpBarGrad)" clip-path="url(#barClip)"/>
+            
+            <!-- MARCADORES DE NÍVEL -->
+            <circle cx="80" cy="35" r="3" fill="white" opacity="0.5"/>
+            <circle cx="160" cy="35" r="3" fill="white" opacity="0.5"/>
+            <circle cx="240" cy="35" r="3" fill="white" opacity="0.5"/>
+            <circle cx="320" cy="35" r="3" fill="white" opacity="0.5"/>
+            
+            <!-- EFEITO DE PULSO NA BARRA -->
+            <rect x="0" y="20" width="
+EOF
+          
+          echo "$BAR_XP_WIDTH" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+            " height="30" rx="15" fill="none" stroke="
+EOF
+          
+          echo "$GLOW_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+          " stroke-width="1" opacity="0.7">
+              <animate attributeName="opacity" values="0.3;0.7;0.3" dur="2s" repeatCount="indefinite"/>
+            </rect>
+          </g>
+          
+          <!-- BIO MATRIX -->
+          <g transform="translate(100, 360)">
+            <rect x="0" y="0" width="600" height="60" rx="10" fill="#1A1A1A" opacity="0.8"/>
+            <text x="10" y="20" class="metro-label">📡 MATRIX BIO</text>
+            <text x="10" y="40" class="metro-bio">
+EOF
+          
+          echo "$BIO_ESC" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+            </text>
+          </g>
+          
+          <!-- STATS GITHUB EM GRADE 3x2 -->
+          <g transform="translate(100, 440)">
+            <text x="0" y="0" class="metro-label">STATS GITHUB</text>
+            
+            <g transform="translate(0, 30)">
+              <!-- LINHA 1 -->
+              <!-- REPOS -->
+              <rect x="0" y="0" width="190" height="70" rx="10" fill="#222222" opacity="0.9"/>
+              <text x="95" y="25" text-anchor="middle" class="metro-label">Repositórios</text>
+              <text x="95" y="50" text-anchor="middle" class="metro-value" fill="
+EOF
+          
+          echo "$PRIMARY_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+          ">
+EOF
+          
+          echo "$REPO_COUNT" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              </text>
+              
+              <!-- FOLLOWERS -->
+              <rect x="210" y="0" width="190" height="70" rx="10" fill="#222222" opacity="0.9"/>
+              <text x="305" y="25" text-anchor="middle" class="metro-label">Seguidores</text>
+              <text x="305" y="50" text-anchor="middle" class="metro-value" fill="
+EOF
+          
+          echo "$SECONDARY_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+          ">
+EOF
+          
+          echo "$FOLLOWER_COUNT" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              </text>
+              
+              <!-- STARS -->
+              <rect x="420" y="0" width="190" height="70" rx="10" fill="#222222" opacity="0.9"/>
+              <text x="515" y="25" text-anchor="middle" class="metro-label">Estrelas</text>
+              <text x="515" y="50" text-anchor="middle" class="metro-value" fill="
+EOF
+          
+          echo "$GLOW_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+          ">
+EOF
+          
+          echo "$STAR_TOTAL" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              </text>
+              
+              <!-- LINHA 2 -->
+              <!-- COMMITS -->
+              <rect x="0" y="90" width="190" height="70" rx="10" fill="#222222" opacity="0.9"/>
+              <text x="95" y="115" text-anchor="middle" class="metro-label">Commits</text>
+              <text x="95" y="140" text-anchor="middle" class="metro-value">
+EOF
+          
+          echo "$COMMIT_COUNT" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              </text>
+              
+              <!-- PRs -->
+              <rect x="210" y="90" width="190" height="70" rx="10" fill="#222222" opacity="0.9"/>
+              <text x="305" y="115" text-anchor="middle" class="metro-label">Pull Requests</text>
+              <text x="305" y="140" text-anchor="middle" class="metro-value">
+EOF
+          
+          echo "$PR_COUNT" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              </text>
+              
+              <!-- ISSUES -->
+              <rect x="420" y="90" width="190" height="70" rx="10" fill="#222222" opacity="0.9"/>
+              <text x="515" y="115" text-anchor="middle" class="metro-label">Issues</text>
+              <text x="515" y="140" text-anchor="middle" class="metro-value">
+EOF
+          
+          echo "$ISSUE_COUNT" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              </text>
             </g>
-            
-            <text x="40" y="180" font-family="Arial" font-size="10" fill="#888">Created: $DATE</text>
-          </svg>
-          EOF
+          </g>
           
-          echo "Card made for $USER"
+          <!-- BARRAS DE MÉTRICAS AVANÇADAS -->
+          <g transform="translate(100, 620)">
+            <text x="0" y="0" class="metro-label">MÉTRICAS AVANÇADAS</text>
+            
+            <g transform="translate(0, 30)">
+              <!-- EFICIÊNCIA -->
+              <text x="0" y="15" class="metro-xp">EFICIÊNCIA</text>
+              <rect x="100" y="5" width="100" height="15" rx="7" fill="#1A1A1A"/>
+              <rect x="100" y="5" width="
+EOF
+          
+          echo "$BAR_EFF_WIDTH" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+            " height="15" rx="7" fill="
+EOF
+          
+          echo "$PRIMARY_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+          "/>
+              <text x="205" y="15" class="metro-xp">
+EOF
+          
+          echo "$EFFICIENCY" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              </text>
+              
+              <!-- ATIVIDADE -->
+              <text x="0" y="45" class="metro-xp">ATIVIDADE</text>
+              <rect x="100" y="35" width="100" height="15" rx="7" fill="#1A1A1A"/>
+              <rect x="100" y="35" width="
+EOF
+          
+          echo "$BAR_ACT_WIDTH" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+            " height="15" rx="7" fill="
+EOF
+          
+          echo "$SECONDARY_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+          "/>
+              <text x="205" y="45" class="metro-xp">
+EOF
+          
+          echo "$ACTIVITY_SCORE/dia" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              </text>
+              
+              <!-- IMPACTO -->
+              <text x="0" y="75" class="metro-xp">IMPACTO</text>
+              <rect x="100" y="65" width="100" height="15" rx="7" fill="#1A1A1A"/>
+              <rect x="100" y="65" width="
+EOF
+          
+          echo "$BAR_IMP_WIDTH" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+            " height="15" rx="7" fill="
+EOF
+          
+          echo "$GLOW_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+          "/>
+              <text x="205" y="75" class="metro-xp">
+EOF
+          
+          echo "$IMPACT_SCORE" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              </text>
+            </g>
+          </g>
+          
+          <!-- PROJETOS TOP EM GRADE -->
+          <g transform="translate(100, 730)">
+            <text x="0" y="0" class="metro-label">PROJETOS MATRIX</text>
+            
+            <g transform="translate(0, 30)">
+              <!-- PROJETO 1 -->
+              <rect x="0" y="0" width="150" height="80" rx="10" fill="#222222" opacity="0.9"/>
+              <text x="75" y="20" text-anchor="middle" class="metro-project" font-weight="600">
+EOF
+          
+          echo "$P1_NAME_ESC" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              </text>
+              <text x="75" y="35" text-anchor="middle" class="metro-project">⭐ 
+EOF
+          
+          echo "$PROJECT1_STARS" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+               🍴 
+EOF
+          
+          echo "$PROJECT1_FORKS" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              </text>
+              <text x="75" y="50" text-anchor="middle" class="metro-project">⚙️ 
+EOF
+          
+          echo "$P1_LANG_ESC" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              </text>
+              
+              <!-- PROJETO 2 -->
+              <rect x="160" y="0" width="150" height="80" rx="10" fill="#222222" opacity="0.9"/>
+              <text x="235" y="20" text-anchor="middle" class="metro-project" font-weight="600">
+EOF
+          
+          echo "$P2_NAME_ESC" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              </text>
+              <text x="235" y="35" text-anchor="middle" class="metro-project">⭐ 
+EOF
+          
+          echo "$PROJECT2_STARS" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+               🍴 
+EOF
+          
+          echo "$PROJECT2_FORKS" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              </text>
+              <text x="235" y="50" text-anchor="middle" class="metro-project">⚙️ 
+EOF
+          
+          echo "$P2_LANG_ESC" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              </text>
+              
+              <!-- PROJETO 3 -->
+              <rect x="320" y="0" width="150" height="80" rx="10" fill="#222222" opacity="0.9"/>
+              <text x="395" y="20" text-anchor="middle" class="metro-project" font-weight="600">
+EOF
+          
+          echo "$P3_NAME_ESC" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              </text>
+              <text x="395" y="35" text-anchor="middle" class="metro-project">⭐ 
+EOF
+          
+          echo "$PROJECT3_STARS" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+               🍴 
+EOF
+          
+          echo "$PROJECT3_FORKS" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              </text>
+              <text x="395" y="50" text-anchor="middle" class="metro-project">⚙️ 
+EOF
+          
+          echo "$P3_LANG_ESC" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              </text>
+              
+              <!-- PROJETO 4 -->
+              <rect x="480" y="0" width="150" height="80" rx="10" fill="#222222" opacity="0.9"/>
+              <text x="555" y="20" text-anchor="middle" class="metro-project" font-weight="600">
+EOF
+          
+          echo "$P4_NAME_ESC" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              </text>
+              <text x="555" y="35" text-anchor="middle" class="metro-project">⭐ 
+EOF
+          
+          echo "$PROJECT4_STARS" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+               🍴 
+EOF
+          
+          echo "$PROJECT4_FORKS" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              </text>
+              <text x="555" y="50" text-anchor="middle" class="metro-project">⚙️ 
+EOF
+          
+          echo "$P4_LANG_ESC" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+              </text>
+            </g>
+          </g>
+          
+          <!-- RODAPÉ METRO -->
+          <g transform="translate(100, 850)">
+            <rect x="0" y="0" width="600" height="40" rx="10" fill="#0A0A0A" opacity="0.9"/>
+            <text x="10" y="25" class="metro-xp">⚡ METRO GOTHIC XP SYSTEM • 
+EOF
+          
+          echo "$MATRIX_DATE $MATRIX_TIME" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+            </text>
+            <text x="590" y="25" class="metro-xp" text-anchor="end">ID: 
+EOF
+          
+          echo "$UNIX_TIME" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+            </text>
+          </g>
+          
+          <!-- ANIMAÇÕES E EFEITOS -->
+          <!-- PONTOS BRILHANTES -->
+          <circle cx="100" cy="100" r="2" fill="
+EOF
+          
+          echo "$GLOW_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+          " opacity="0.8">
+            <animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite"/>
+          </circle>
+          
+          <circle cx="700" cy="200" r="2" fill="
+EOF
+          
+          echo "$PRIMARY_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+          " opacity="0.8">
+            <animate attributeName="opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite"/>
+          </circle>
+          
+          <circle cx="150" cy="900" r="2" fill="
+EOF
+          
+          echo "$SECONDARY_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+          " opacity="0.8">
+            <animate attributeName="opacity" values="0.3;1;0.3" dur="2.5s" repeatCount="indefinite"/>
+          </circle>
+          
+          <!-- LINHAS SCAN -->
+          <line x1="50" y1="180" x2="750" y2="180" stroke="
+EOF
+          
+          echo "$GLOW_COLOR" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << 'EOF'
+          " stroke-width="1" opacity="0.3">
+            <animate attributeName="opacity" values="0.1;0.5;0.1" dur="3s" repeatCount="indefinite"/>
+          </line>
+          
+          <!-- CÓDIGO BINÁRIO DECORATIVO -->
+          <text x="750" y="50" text-anchor="end" class="metro-xp" opacity="0.1">10101010</text>
+          <text x="750" y="70" text-anchor="end" class="metro-xp" opacity="0.1">01010101</text>
+          <text x="50" y="980" class="metro-xp" opacity="0.1">SYSTEM: ONLINE</text>
+          
+          </svg>
+EOF
+          
+          echo "⚡✅ CARD METRO GOTHIC CRIADO: $SVG_FILE"
+          echo "🎮 Sistema XP: Nível $LEVEL | Rank $RANK"
+          echo "📊 XP Total: $TOTAL_XP ($XP_PERCENT% progresso)"
+          echo "🔥 Métricas: Eficiência $EFFICIENCY | Atividade $ACTIVITY_SCORE/dia"
+          echo "💫 Cores: $PRIMARY_COLOR | $SECONDARY_COLOR | $GLOW_COLOR"
+          echo "✅ Card gerado com SUCESSO ABSOLUTO!"
       
-      - name: Save
+      - name: 🚀 IMPLANTAR NA MATRIX
         run: |
-          git config user.name "actions"
-          git config user.email "actions@github.com"
+          git config user.name "metro-system"
+          git config user.email "matrix@github.com"
+          
           git add cards/
-          git commit -m "Card for ${{ github.event.inputs.user }}" || exit 0
+          git commit -m "⚡ METRO CARD: ${{ github.event.inputs.github_user }} | Nível ${{ steps.scan-matrix.outputs.level }} | Rank ${{ steps.scan-matrix.outputs.rank }}" || echo "Matrix atualizada"
           git push
+          
+          echo "🚀 CARD IMPLANTADO NA MATRIX!"
+          echo "🌐 Acesso: /cards/ no repositório"
