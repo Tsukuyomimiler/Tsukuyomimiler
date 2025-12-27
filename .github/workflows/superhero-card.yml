@@ -1,32 +1,28 @@
-name: "🎴 ANIME SUPERHERO CARD"
+name: "🦸‍♂️ SUPERHERO CARD GENERATOR"
 
 on:
   workflow_dispatch:
     inputs:
-      github_user:
-        description: 'Usuário do GitHub (para foto)'
-        required: true
-        default: 'ciconha'
       hero_name:
-        description: 'Nome do Herói'
+        description: 'Nome do Herói (ex: H/N)'
         required: true
         default: 'H/N'
       hero_class:
-        description: 'Classe'
+        description: 'Classe do Herói (ex: Superhero)'
         required: false
         default: 'Superhero'
       guild:
-        description: 'Guilda/Afiliação'
+        description: 'Guilda/Afiliação (ex: 14Ball Official)'
         required: false
         default: '14Ball Official'
       species:
-        description: 'Espécie'
+        description: 'Espécie/Gênero (ex: Human)'
         required: false
         default: 'Human'
       backstory:
-        description: 'História (curta)'
+        description: 'História do herói'
         required: false
-        default: 'From another dimension. Expert fighter with vast knowledge.'
+        default: 'Being from another dimension, H/N doesn''t have any powers. Though, being a very good fighter mixed with having knowledge of most everything makes him a formidable adversary.'
       
       # Stats
       strength:
@@ -63,14 +59,6 @@ on:
         description: 'Habilidade 2'
         required: false
         default: 'Spinitzu'
-      skill_3:
-        description: 'Habilidade 3'
-        required: false
-        default: ''
-      skill_4:
-        description: 'Habilidade 4'
-        required: false
-        default: ''
       
       # Ranking
       ranking:
@@ -82,42 +70,25 @@ permissions:
   contents: write
 
 jobs:
-  create-anime-card:
+  create-card:
     runs-on: ubuntu-latest
     
     steps:
       - name: 📥 Checkout do repositório
         uses: actions/checkout@v4
       
-      - name: ⚙️ Instalar dependências
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y curl jq imagemagick
-      
-      - name: 🖼️ Buscar avatar do GitHub
-        id: get-avatar
-        run: |
-          USER="${{ github.event.inputs.github_user }}"
-          echo "🔍 Buscando avatar para usuário: $USER"
-          
-          # URL do avatar do GitHub
-          AVATAR_URL="https://github.com/$USER.png?size=200"
-          echo "avatar_url=$AVATAR_URL" >> $GITHUB_OUTPUT
-          echo "✅ Avatar: $AVATAR_URL"
-      
-      - name: 🎨 Preparar diretório
+      - name: 🎨 Criar diretório para cards
         run: mkdir -p cards
       
-      - name: 🖼️ Criar Card Anime
+      - name: 🖼️ Gerar SVG Anime Card
         run: |
-          # Variáveis dos inputs
+          # Pegar os valores dos inputs
           HERO_NAME="${{ github.event.inputs.hero_name }}"
           HERO_CLASS="${{ github.event.inputs.hero_class }}"
           GUILD="${{ github.event.inputs.guild }}"
           SPECIES="${{ github.event.inputs.species }}"
           BACKSTORY="${{ github.event.inputs.backstory }}"
           RANKING="${{ github.event.inputs.ranking }}"
-          AVATAR_URL="${{ steps.get-avatar.outputs.avatar_url }}"
           
           # Stats
           STR="${{ github.event.inputs.strength }}"
@@ -130,269 +101,218 @@ jobs:
           # Skills
           SKILL1="${{ github.event.inputs.skill_1 }}"
           SKILL2="${{ github.event.inputs.skill_2 }}"
-          SKILL3="${{ github.event.inputs.skill_3 }}"
-          SKILL4="${{ github.event.inputs.skill_4 }}"
           
-          # Data
+          # Data atual
           DATE=$(date +'%d/%m/%Y')
-          CARD_ID=$(date +%s | tail -c 4)
           
-          # Cores anime
-          RANK_S="#FFD700"
-          RANK_A="#FF6B6B"
-          RANK_B="#4ECDC4"
-          RANK_C="#95E1D3"
+          # Calcular larguras das barras (130px max para estilo compacto)
+          STR_BAR=$((STR * 13))
+          HEALTH_BAR=$((HEALTH * 13))
+          MAGIC_BAR=$((MAGIC * 13))
+          DEX_BAR=$((DEX * 13))
+          AGI_BAR=$((AGI * 13))
+          LUCK_BAR=$((LUCK * 13))
           
-          # Cor do ranking
+          # Cor do ranking (cores anime)
           case "$RANKING" in
-            "S") RANK_COLOR="$RANK_S" ;;
-            "A") RANK_COLOR="$RANK_A" ;;
-            "B") RANK_COLOR="$RANK_B" ;;
-            "C") RANK_COLOR="$RANK_C" ;;
-            *) RANK_COLOR="#00B4D8" ;;
+            "S") RANK_COLOR="#FFD700" ;;  # Ouro
+            "A") RANK_COLOR="#FF6B6B" ;;  # Vermelho anime
+            "B") RANK_COLOR="#4ECDC4" ;;  # Turquesa
+            "C") RANK_COLOR="#95E1D3" ;;  # Verde água
+            *) RANK_COLOR="#00B4D8" ;;    # Azul anime
           esac
           
-          # Barras de stats
-          STR_BAR=$((STR * 12))
-          HEALTH_BAR=$((HEALTH * 12))
-          MAGIC_BAR=$((MAGIC * 12))
-          DEX_BAR=$((DEX * 12))
-          AGI_BAR=$((AGI * 12))
-          LUCK_BAR=$((LUCK * 12))
-          
           # Nome do arquivo
-          FILENAME=$(echo "$HERO_NAME" | tr ' ' '_' | tr -cd '[:alnum:]_')
-          SVG_FILE="cards/${FILENAME}_anime.svg"
+          FILENAME=$(echo "$HERO_NAME" | tr -cd '[:alnum:]-_ ' | tr ' ' '_')
+          SVG_FILE="cards/${FILENAME}.svg"
           
-          # Criar SVG
+          # Criar o arquivo SVG com design anime
           cat > "$SVG_FILE" << EOF
-          <svg xmlns="http://www.w3.org/2000/svg" width="450" height="650" viewBox="0 0 450 650">
+          <svg xmlns="http://www.w3.org/2000/svg" width="580" height="380" viewBox="0 0 580 380">
           <defs>
-            <!-- Gradientes -->
-            <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#0F0F23"/>
-              <stop offset="100%" stop-color="#1A1A2E"/>
+            <!-- Gradientes anime -->
+            <linearGradient id="cardGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#1a1a2e"/>
+              <stop offset="100%" stop-color="#16213e"/>
             </linearGradient>
             
             <linearGradient id="statGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#FF6B6B"/>
+              <stop offset="50%" stop-color="#FF8E8E"/>
+              <stop offset="100%" stop-color="#FF6B6B"/>
+            </linearGradient>
+            
+            <linearGradient id="headerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" stop-color="#00B4D8"/>
               <stop offset="100%" stop-color="#0077B6"/>
             </linearGradient>
             
-            <linearGradient id="headerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stop-color="#FF6B6B"/>
-              <stop offset="100%" stop-color="#FF8E8E"/>
-            </linearGradient>
-            
-            <!-- Filtros -->
-            <filter id="shadow">
-              <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.5"/>
+            <!-- Filtros anime -->
+            <filter id="softShadow">
+              <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#000" flood-opacity="0.3"/>
             </filter>
             
             <filter id="glow">
-              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feGaussianBlur stdDeviation="2" result="blur"/>
               <feMerge>
                 <feMergeNode in="blur"/>
                 <feMergeNode in="SourceGraphic"/>
               </feMerge>
             </filter>
-            
-            <!-- Clip path para a foto -->
-            <clipPath id="avatarClip">
-              <circle cx="225" cy="120" r="55"/>
-            </clipPath>
           </defs>
           
-          <!-- Fundo -->
-          <rect width="450" height="650" rx="25" fill="url(#bgGradient)"/>
+          <!-- Fundo do card com cantos arredondados -->
+          <rect width="580" height="380" rx="20" fill="url(#cardGradient)"/>
           
-          <!-- Card principal -->
-          <rect x="25" y="25" width="400" height="600" rx="20" fill="#16162E" stroke="#00B4D8" stroke-width="2" opacity="0.9"/>
+          <!-- Header com cantos arredondados -->
+          <rect x="20" y="20" width="540" height="60" rx="15" fill="#252547" opacity="0.9"/>
           
-          <!-- Cabeçalho com gradiente -->
-          <rect x="25" y="25" width="400" height="80" rx="20" fill="url(#headerGradient)" opacity="0.8"/>
+          <!-- Nome do Herói -->
+          <text x="40" y="55" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="white">$HERO_NAME</text>
           
-          <!-- Foto do avatar -->
-          <circle cx="225" cy="120" r="58" fill="#00B4D8" opacity="0.3"/>
-          <circle cx="225" cy="120" r="55" fill="#1A1A2E"/>
-          <image href="$AVATAR_URL" x="170" y="65" width="110" height="110" clip-path="url(#avatarClip)"/>
-          <circle cx="225" cy="120" r="55" fill="none" stroke="#00B4D8" stroke-width="3" opacity="0.6"/>
+          <!-- Badge da Classe -->
+          <rect x="440" y="30" width="110" height="25" rx="12" fill="url(#headerGradient)"/>
+          <text x="450" y="40" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">CLASS</text>
+          <text x="495" y="48" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white">$HERO_CLASS</text>
           
-          <!-- Nome do herói -->
-          <text x="225" y="190" text-anchor="middle" font-family="Arial" font-size="26" font-weight="bold" fill="white">$HERO_NAME</text>
-          
-          <!-- Classe -->
-          <rect x="175" y="200" width="100" height="30" rx="15" fill="#00B4D8" opacity="0.7"/>
-          <text x="225" y="220" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold" fill="white">$HERO_CLASS</text>
-          
-          <!-- Info Grid -->
-          <g transform="translate(50, 240)">
+          <!-- Informações em container arredondado -->
+          <g transform="translate(20, 90)">
+            <rect x="0" y="0" width="540" height="40" rx="10" fill="#2d3748" opacity="0.8"/>
+            
             <!-- Guilda -->
-            <rect x="0" y="0" width="150" height="40" rx="10" fill="#252547" opacity="0.8"/>
-            <text x="10" y="15" font-family="Arial" font-size="11" fill="#A0A0C0">GUILDA</text>
-            <text x="10" y="30" font-family="Arial" font-size="12" font-weight="bold" fill="white">$GUILD</text>
+            <text x="20" y="15" font-family="Arial, sans-serif" font-size="12" fill="#A0A0C0">GUIDE</text>
+            <text x="20" y="30" font-family="Courier, monospace" font-size="13" font-weight="bold" fill="#FFD166">$GUILD</text>
             
             <!-- Espécie -->
-            <rect x="170" y="0" width="150" height="40" rx="10" fill="#252547" opacity="0.8"/>
-            <text x="180" y="15" font-family="Arial" font-size="11" fill="#A0A0C0">ESPÉCIE</text>
-            <text x="180" y="30" font-family="Arial" font-size="12" font-weight="bold" fill="white">$SPECIES</text>
+            <text x="300" y="15" font-family="Arial, sans-serif" font-size="12" fill="#A0A0C0">GENDER/SPECIES</text>
+            <text x="300" y="30" font-family="Courier, monospace" font-size="13" font-weight="bold" fill="#4ECDC4">$SPECIES</text>
           </g>
           
-          <!-- História -->
-          <g transform="translate(50, 300)">
-            <rect x="0" y="0" width="350" height="60" rx="10" fill="#252547" opacity="0.8"/>
-            <text x="10" y="20" font-family="Arial" font-size="13" fill="#00B4D8" font-weight="bold">HISTÓRIA</text>
-            <text x="10" y="40" font-family="Arial" font-size="11" fill="#E0E0FF">$BACKSTORY</text>
+          <!-- Linha divisória decorativa -->
+          <line x1="20" y1="140" x2="560" y2="140" stroke="#00B4D8" stroke-width="2" opacity="0.5"/>
+          
+          <!-- História em container arredondado -->
+          <g transform="translate(20, 150)">
+            <rect x="0" y="0" width="540" height="50" rx="10" fill="#252547" opacity="0.8"/>
+            <text x="15" y="15" font-family="Arial, sans-serif" font-size="13" fill="#FF6B6B" font-weight="bold">INV$</text>
+            <text x="15" y="32" font-family="Courier, monospace" font-size="10" fill="#E0E0FF">Backstory:</text>
+            <text x="15" y="45" font-family="Courier, monospace" font-size="9" fill="#C0C0E0">$BACKSTORY</text>
           </g>
           
-          <!-- Stats -->
-          <g transform="translate(50, 380)">
-            <text x="0" y="0" font-family="Arial" font-size="16" fill="#00B4D8" font-weight="bold">ATRIBUTOS</text>
+          <!-- Título Stats -->
+          <text x="30" y="220" font-family="Arial, sans-serif" font-size="18" fill="#00B4D8" font-weight="bold">STATS/#SKILLS</text>
+          
+          <!-- Stats em grid 2x3 com cantos arredondados -->
+          <g transform="translate(30, 235)">
+            <!-- Linha 1 -->
+            <g>
+              <text x="0" y="15" font-family="Arial, sans-serif" font-size="12" fill="#C0C0E0">STRENGTH</text>
+              <rect x="100" y="5" width="130" height="10" rx="5" fill="#2A2A4A"/>
+              <rect x="100" y="5" width="$STR_BAR" height="10" rx="5" fill="url(#statGradient)"/>
+              <text x="235" y="13" font-family="Courier, monospace" font-size="11" fill="white">$STR/10</text>
+            </g>
             
-            <!-- Grid de stats -->
-            <g transform="translate(0, 25)">
-              <!-- Linha 1 -->
-              <g>
-                <text x="0" y="15" font-family="Arial" font-size="12" fill="#C0C0E0">FORÇA</text>
-                <rect x="70" y="5" width="100" height="10" rx="5" fill="#2A2A4A"/>
-                <rect x="70" y="5" width="$STR_BAR" height="10" rx="5" fill="url(#statGradient)"/>
-                <text x="175" y="13" font-family="Arial" font-size="11" fill="white">$STR</text>
-              </g>
-              
-              <g transform="translate(180, 0)">
-                <text x="0" y="15" font-family="Arial" font-size="12" fill="#C0C0E0">SAÚDE</text>
-                <rect x="70" y="5" width="100" height="10" rx="5" fill="#2A2A4A"/>
-                <rect x="70" y="5" width="$HEALTH_BAR" height="10" rx="5" fill="url(#statGradient)"/>
-                <text x="175" y="13" font-family="Arial" font-size="11" fill="white">$HEALTH</text>
-              </g>
-              
-              <!-- Linha 2 -->
-              <g transform="translate(0, 40)">
-                <text x="0" y="15" font-family="Arial" font-size="12" fill="#C0C0E0">MAGIA</text>
-                <rect x="70" y="5" width="100" height="10" rx="5" fill="#2A2A4A"/>
-                <rect x="70" y="5" width="$MAGIC_BAR" height="10" rx="5" fill="url(#statGradient)"/>
-                <text x="175" y="13" font-family="Arial" font-size="11" fill="white">$MAGIC</text>
-              </g>
-              
-              <g transform="translate(180, 40)">
-                <text x="0" y="15" font-family="Arial" font-size="12" fill="#C0C0E0">DESTREZA</text>
-                <rect x="70" y="5" width="100" height="10" rx="5" fill="#2A2A4A"/>
-                <rect x="70" y="5" width="$DEX_BAR" height="10" rx="5" fill="url(#statGradient)"/>
-                <text x="175" y="13" font-family="Arial" font-size="11" fill="white">$DEX</text>
-              </g>
-              
-              <!-- Linha 3 -->
-              <g transform="translate(0, 80)">
-                <text x="0" y="15" font-family="Arial" font-size="12" fill="#C0C0E0">AGILIDADE</text>
-                <rect x="70" y="5" width="100" height="10" rx="5" fill="#2A2A4A"/>
-                <rect x="70" y="5" width="$AGI_BAR" height="10" rx="5" fill="url(#statGradient)"/>
-                <text x="175" y="13" font-family="Arial" font-size="11" fill="white">$AGI</text>
-              </g>
-              
-              <g transform="translate(180, 80)">
-                <text x="0" y="15" font-family="Arial" font-size="12" fill="#C0C0E0">SORTE</text>
-                <rect x="70" y="5" width="100" height="10" rx="5" fill="#2A2A4A"/>
-                <rect x="70" y="5" width="$LUCK_BAR" height="10" rx="5" fill="url(#statGradient)"/>
-                <text x="175" y="13" font-family="Arial" font-size="11" fill="white">$LUCK</text>
-              </g>
+            <g transform="translate(280, 0)">
+              <text x="0" y="15" font-family="Arial, sans-serif" font-size="12" fill="#C0C0E0">HEALTH</text>
+              <rect x="100" y="5" width="130" height="10" rx="5" fill="#2A2A4A"/>
+              <rect x="100" y="5" width="$HEALTH_BAR" height="10" rx="5" fill="url(#statGradient)"/>
+              <text x="235" y="13" font-family="Courier, monospace" font-size="11" fill="white">$HEALTH/10</text>
+            </g>
+            
+            <!-- Linha 2 -->
+            <g transform="translate(0, 35)">
+              <text x="0" y="15" font-family="Arial, sans-serif" font-size="12" fill="#C0C0E0">MAGIC POW</text>
+              <rect x="100" y="5" width="130" height="10" rx="5" fill="#2A2A4A"/>
+              <rect x="100" y="5" width="$MAGIC_BAR" height="10" rx="5" fill="url(#statGradient)"/>
+              <text x="235" y="13" font-family="Courier, monospace" font-size="11" fill="white">$MAGIC/10</text>
+            </g>
+            
+            <g transform="translate(280, 35)">
+              <text x="0" y="15" font-family="Arial, sans-serif" font-size="12" fill="#C0C0E0">DEXTERITY</text>
+              <rect x="100" y="5" width="130" height="10" rx="5" fill="#2A2A4A"/>
+              <rect x="100" y="5" width="$DEX_BAR" height="10" rx="5" fill="url(#statGradient)"/>
+              <text x="235" y="13" font-family="Courier, monospace" font-size="11" fill="white">$DEX/10</text>
+            </g>
+            
+            <!-- Linha 3 -->
+            <g transform="translate(0, 70)">
+              <text x="0" y="15" font-family="Arial, sans-serif" font-size="12" fill="#C0C0E0">AGILITY</text>
+              <rect x="100" y="5" width="130" height="10" rx="5" fill="#2A2A4A"/>
+              <rect x="100" y="5" width="$AGI_BAR" height="10" rx="5" fill="url(#statGradient)"/>
+              <text x="235" y="13" font-family="Courier, monospace" font-size="11" fill="white">$AGI/10</text>
+            </g>
+            
+            <g transform="translate(280, 70)">
+              <text x="0" y="15" font-family="Arial, sans-serif" font-size="12" fill="#C0C0E0">LUCK</text>
+              <rect x="100" y="5" width="130" height="10" rx="5" fill="#2A2A4A"/>
+              <rect x="100" y="5" width="$LUCK_BAR" height="10" rx="5" fill="url(#statGradient)"/>
+              <text x="235" y="13" font-family="Courier, monospace" font-size="11" fill="white">$LUCK/10</text>
             </g>
           </g>
           
-          <!-- Habilidades -->
-          <g transform="translate(50, 500)">
-            <text x="0" y="0" font-family="Arial" font-size="16" fill="#00B4D8" font-weight="bold">HABILIDADES</text>
-            <rect x="0" y="10" width="350" height="80" rx="10" fill="#252547" opacity="0.8"/>
+          <!-- Skills em container arredondado -->
+          <g transform="translate(30, 320)">
+            <rect x="0" y="0" width="250" height="40" rx="10" fill="#252547" opacity="0.8"/>
+            <text x="10" y="15" font-family="Arial, sans-serif" font-size="14" fill="#00B4D8" font-weight="bold">ACTIVE SKILLS</text>
+            <text x="10" y="30" font-family="Courier, monospace" font-size="12" fill="#FFD166">• $SKILL1</text>
+            <text x="130" y="30" font-family="Courier, monospace" font-size="12" fill="#4ECDC4">• $SKILL2</text>
+          </g>
+          
+          <!-- Footer com cantos arredondados -->
+          <g transform="translate(20, 320)">
+            <!-- Superhero label -->
+            <rect x="300" y="0" width="120" height="40" rx="10" fill="#2d3748" opacity="0.8"/>
+            <text x="310" y="15" font-family="Arial, sans-serif" font-size="14" fill="#FF6B6B" font-weight="bold">SUPERHERO</text>
             
-            <g transform="translate(15, 30)">
-              <!-- Coluna 1 -->
-              <g>
-EOF
-
-          # Skills coluna 1
-          SKILL_Y=0
-          if [ -n "$SKILL1" ]; then
-            echo "                <text x=\"0\" y=\"$SKILL_Y\" font-family=\"Arial\" font-size=\"12\" fill=\"#FFD166\">✦ $SKILL1</text>" >> "$SVG_FILE"
-            SKILL_Y=$((SKILL_Y + 20))
-          fi
-          
-          if [ -n "$SKILL2" ]; then
-            echo "                <text x=\"0\" y=\"$SKILL_Y\" font-family=\"Arial\" font-size=\"12\" fill=\"#FFD166\">✦ $SKILL2</text>" >> "$SVG_FILE"
-            SKILL_Y=$((SKILL_Y + 20))
-          fi
-          
-          echo "              </g>" >> "$SVG_FILE"
-          
-          # Skills coluna 2
-          echo "              <g transform=\"translate(180, 0)\">" >> "$SVG_FILE"
-          SKILL_Y=0
-          
-          if [ -n "$SKILL3" ]; then
-            echo "                <text x=\"0\" y=\"$SKILL_Y\" font-family=\"Arial\" font-size=\"12\" fill=\"#FFD166\">✦ $SKILL3</text>" >> "$SVG_FILE"
-            SKILL_Y=$((SKILL_Y + 20))
-          fi
-          
-          if [ -n "$SKILL4" ]; then
-            echo "                <text x=\"0\" y=\"$SKILL_Y\" font-family=\"Arial\" font-size=\"12\" fill=\"#FFD166\">✦ $SKILL4</text>" >> "$SVG_FILE"
-          fi
-          
-          # Slots vazios
-          SKILL_COUNT=0
-          [ -n "$SKILL1" ] && SKILL_COUNT=$((SKILL_COUNT + 1))
-          [ -n "$SKILL2" ] && SKILL_COUNT=$((SKILL_COUNT + 1))
-          [ -n "$SKILL3" ] && SKILL_COUNT=$((SKILL_COUNT + 1))
-          [ -n "$SKILL4" ] && SKILL_COUNT=$((SKILL_COUNT + 1))
-          
-          if [ $SKILL_COUNT -lt 4 ]; then
-            for ((i=SKILL_COUNT; i<4; i++)); do
-              if [ $i -lt 2 ]; then
-                POS_Y=$((i * 20))
-                echo "                <text x=\"0\" y=\"$POS_Y\" font-family=\"Arial\" font-size=\"12\" fill=\"#666699\" opacity=\"0.5\">✦ [Vazio]</text>" >> "$SVG_FILE"
-              else
-                POS_Y=$(((i-2) * 20))
-                echo "                <text x=\"0\" y=\"$POS_Y\" font-family=\"Arial\" font-size=\"12\" fill=\"#666699\" opacity=\"0.5\">✦ [Vazio]</text>" >> "$SVG_FILE"
-              fi
-            done
-          fi
-          
-          cat >> "$SVG_FILE" << EOF
-              </g>
-            </g>
+            <!-- Badge do Ranking -->
+            <rect x="440" y="0" width="120" height="40" rx="10" fill="#252547" opacity="0.9"/>
+            <text x="450" y="15" font-family="Arial, sans-serif" font-size="12" fill="#A0A0C0">RANKING</text>
+            <text x="500" y="35" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="$RANK_COLOR" text-anchor="middle">$RANKING</text>
           </g>
           
-          <!-- Ranking -->
-          <g transform="translate(50, 590)">
-            <rect x="0" y="0" width="350" height="40" rx="20" fill="#252547" opacity="0.8"/>
-            <text x="20" y="25" font-family="Arial" font-size="16" fill="#00B4D8" font-weight="bold">CLASSIFICAÇÃO</text>
-            
-            <!-- Badge do ranking -->
-            <circle cx="310" cy="20" r="15" fill="$RANK_COLOR" opacity="0.9"/>
-            <text x="310" y="26" text-anchor="middle" font-family="Arial" font-size="20" font-weight="bold" fill="white">$RANKING</text>
+          <!-- Informações do rodapé -->
+          <g transform="translate(20, 365)">
+            <text x="0" y="0" font-family="Courier, monospace" font-size="9" fill="#8888AA">Generated: $DATE</text>
+            <text x="400" y="0" font-family="Courier, monospace" font-size="9" fill="#8888AA">Card ID: ${FILENAME}</text>
           </g>
           
-          <!-- Rodapé -->
-          <g transform="translate(50, 635)">
-            <text x="0" y="0" font-family="Arial" font-size="10" fill="#8888AA">Gerado: $DATE</text>
-            <text x="300" y="0" font-family="Arial" font-size="10" fill="#8888AA" text-anchor="end">ID: $CARD_ID</text>
-          </g>
+          <!-- Elementos decorativos anime (cantos arredondados) -->
+          <!-- Cantos superiores -->
+          <rect x="25" y="25" width="10" height="10" rx="3" fill="#00B4D8" opacity="0.5"/>
+          <rect x="545" y="25" width="10" height="10" rx="3" fill="#FF6B6B" opacity="0.5"/>
           
-          <!-- Elementos decorativos -->
-          <circle cx="80" cy="80" r="8" fill="#00B4D8" opacity="0.3"/>
-          <circle cx="370" cy="80" r="6" fill="#FF6B6B" opacity="0.3"/>
-          <circle cx="100" cy="620" r="5" fill="#4ECDC4" opacity="0.3"/>
+          <!-- Cantos inferiores -->
+          <rect x="25" y="345" width="10" height="10" rx="3" fill="#4ECDC4" opacity="0.5"/>
+          <rect x="545" y="345" width="10" height="10" rx="3" fill="#FFD166" opacity="0.5"/>
+          
+          <!-- Pontos decorativos anime -->
+          <circle cx="50" cy="50" r="3" fill="#00B4D8" opacity="0.7"/>
+          <circle cx="530" cy="50" r="3" fill="#FF6B6B" opacity="0.7"/>
+          <circle cx="50" cy="330" r="3" fill="#4ECDC4" opacity="0.7"/>
+          <circle cx="530" cy="330" r="3" fill="#FFD166" opacity="0.7"/>
           
           </svg>
           EOF
           
-          echo "✅ Card anime criado: $SVG_FILE"
+          echo "✅ Card Anime criado: $SVG_FILE"
           echo "🎨 Design: Anime 2D Minimalista"
-          echo "👤 Avatar: $AVATAR_URL"
+          echo "========================"
+          echo "HERÓI: $HERO_NAME"
+          echo "CLASSE: $HERO_CLASS"
+          echo "GUILDA: $GUILD"
+          echo "RANKING: $RANKING"
+          echo "========================"
       
-      - name: 📤 Salvar card
+      - name: 📤 Commit e Push
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           
-          git add cards/
-          git commit -m "🎴 Add anime card: ${{ github.event.inputs.hero_name }}" || echo "Sem alterações"
-          git push || echo "Push falhou ou sem alterações"
-          echo "✅ Workflow completo!"
+          if git status --porcelain | grep -q "cards/"; then
+            git add cards/
+            git commit -m "🦸‍♂️ Novo card anime: ${{ github.event.inputs.hero_name }}"
+            git push
+            echo "✅ Card salvo com sucesso!"
+          else
+            echo "⚠️ Nenhuma alteração para commitar"
+          fi
