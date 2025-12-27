@@ -88,15 +88,6 @@ jobs:
           AVATAR_URL=$(jq -r '.avatar_url' user.json | sed 's/\?v=.*//')
           AVATAR_URL="${AVATAR_URL}&size=150"
           
-          # Extrair bio mantendo todos os formatos
-          BIO_RAW=$(jq -r '.bio // "Developer passionate about technology."' user.json)
-          if [ "$BIO_RAW" = "null" ] || [ -z "$BIO_RAW" ]; then
-            BIO="Developer passionate about technology."
-          else
-            # Manter a bio original, apenas substituir quebras de linha por espaço
-            BIO=$(echo "$BIO_RAW" | sed 's/\\n/ /g; s/\\r/ /g; s/\n/ /g; s/\r/ /g' | tr -s ' ')
-          fi
-          
           # Nome (usar do GitHub se não fornecido)
           GITHUB_NAME=$(jq -r '.name // ""' user.json)
           if [ -z "$GITHUB_NAME" ] || [ "$GITHUB_NAME" = "null" ]; then
