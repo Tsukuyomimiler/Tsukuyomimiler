@@ -1,4 +1,4 @@
-name: "👨‍💻 DEV HERO CARD"
+name: "⚔️ GENSHIN DEV CARD"
 
 on:
   workflow_dispatch:
@@ -7,52 +7,42 @@ on:
         description: 'Usuário do GitHub'
         required: true
         default: 'ciconha'
-      full_name:
-        description: 'Nome completo'
+      character_name:
+        description: 'Nome do Personagem'
         required: false
         default: ''
-      company:
-        description: 'Empresa/Organização'
+      character_class:
+        description: 'Classe (Warrior, Mage, Archer, etc)'
         required: false
-        default: 'INSS'
-      role:
-        description: 'Cargo/Função'
+        default: 'Code Mage'
+      element:
+        description: 'Elemento (Pyro, Hydro, Electro, etc)'
         required: false
-        default: 'Desenvolvedor'
-      location:
-        description: 'Localização'
+        default: 'Electro'
+      region:
+        description: 'Região/Nacionalidade'
         required: false
         default: 'Brasil'
       
-      # Tech Stack
-      main_language:
-        description: 'Linguagem principal'
+      # Stats personalizados
+      weapon_type:
+        description: 'Tipo de Arma (Sword, Catalyst, Bow, etc)'
         required: false
-        default: 'JavaScript'
-      framework:
-        description: 'Framework principal'
+        default: 'Catalyst'
+      special_skill:
+        description: 'Habilidade Especial'
         required: false
-        default: 'React'
-      database:
-        description: 'Banco de dados'
+        default: 'Code Storm'
+      playstyle:
+        description: 'Estilo de jogo (Aggressive, Support, Hybrid)'
         required: false
-        default: 'PostgreSQL'
-      
-      # Stats
-      experience:
-        description: 'Anos de experiência'
-        required: false
-        default: '2'
-      availability:
-        description: 'Disponibilidade (%)'
-        required: false
-        default: '80'
+        default: 'Hybrid'
 
 permissions:
   contents: write
 
 jobs:
-  create-dev-card:
+  create-genshin-card:
     runs-on: ubuntu-latest
     
     steps:
@@ -62,7 +52,7 @@ jobs:
       - name: ⚙️ Instalar dependências
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y curl jq
+          sudo apt-get install -y curl jq bc
       
       - name: 🔍 Buscar dados do GitHub
         id: github-data
@@ -71,123 +61,243 @@ jobs:
         run: |
           USER="${{ github.event.inputs.github_user }}"
           
-          echo "📡 Buscando dados do GitHub para: $USER"
+          echo "🎮 Buscando dados de Teyvat para: $USER"
           
-          # Buscar dados do usuário
-          if [ -n "$GH_TOKEN" ]; then
+          # Sanitizar nome de usuário
+          CLEAN_USER=$(echo "$USER" | tr -cd '[:alnum:]_-')
+          
+          # URL segura para avatar (sem token se não for necessário)
+          AVATAR_URL="https://github.com/$CLEAN_USER.png?size=200"
+          
+          # Tentar buscar dados da API se token existir
+          if [ -n "$GH_TOKEN" ] && [ "$GH_TOKEN" != "" ]; then
+            echo "🔑 Usando token para API..."
             curl -s -H "Authorization: token $GH_TOKEN" \
-                 "https://api.github.com/users/$USER" > user.json
+                 "https://api.github.com/users/$CLEAN_USER" > user.json 2>/dev/null || true
             curl -s -H "Authorization: token $GH_TOKEN" \
-                 "https://api.github.com/users/$USER/repos?sort=stars&per_page=5" > repos.json
+                 "https://api.github.com/users/$CLEAN_USER/repos?sort=stars&per_page=100" > repos.json 2>/dev/null || true
           else
-            curl -s "https://api.github.com/users/$USER" > user.json
-            curl -s "https://api.github.com/users/$USER/repos?sort=stars&per_page=5" > repos.json
+            echo "⚠️ Sem token, usando API pública..."
+            curl -s "https://api.github.com/users/$CLEAN_USER" > user.json 2>/dev/null || true
+            curl -s "https://api.github.com/users/$CLEAN_USER/repos?sort=stars&per_page=100" > repos.json 2>/dev/null || true
           fi
           
-          # Extrair dados
-          AVATAR_URL=$(jq -r '.avatar_url' user.json | sed 's/\?v=.*//')
-          AVATAR_URL="${AVATAR_URL}&size=150"
-          
-          # Nome (usar do GitHub se não fornecido)
-          GITHUB_NAME=$(jq -r '.name // ""' user.json)
-          if [ -z "$GITHUB_NAME" ] || [ "$GITHUB_NAME" = "null" ]; then
-            GITHUB_NAME="$USER"
+          # Verificar se user.json existe e tem dados
+          if [ ! -f user.json ] || [ ! -s user.json ] || ! jq -e '.login' user.json >/dev/null 2>&1; then
+            echo "⚠️ Dados do GitHub não encontrados, usando padrão"
+            PUBLIC_REPOS=0
+            FOLLOWERS=0
+            STARS_TOTAL=0
+            USER_BIO="Traveler from another world"
+          else
+            # Extrair dados com fallbacks
+            PUBLIC_REPOS=$(jq -r '.public_repos // 0' user.json)
+            FOLLOWERS=$(jq -r '.followers // 0' user.json)
+            
+            # Bio (manter original)
+            USER_BIO_RAW=$(jq -r '.bio // "Traveler from another world"' user.json)
+            USER_BIO=$(echo "$USER_BIO_RAW" | sed 's/\\n/ /g; s/\\r/ /g' | head -c 150)
+            
+            # Calcular estrelas totais
+            if [ -f repos.json ] && [ -s repos.json ]; then
+              STARS_TOTAL=$(jq '[.[].stargazers_count // 0] | add' repos.json 2>/dev/null || echo "0")
+            else
+              STARS_TOTAL=0
+            fi
           fi
           
-          # Contar repositórios e seguidores
-          PUBLIC_REPOS=$(jq -r '.public_repos // 0' user.json)
-          FOLLOWERS=$(jq -r '.followers // 0' user.json)
-          
-          # Top 3 projetos com mais estrelas
+          # Top projetos (máximo 3)
           echo '[]' > top_projects.json
           if [ -f repos.json ] && [ -s repos.json ]; then
-            jq '[.[0:3] | .[] | {name: .name, stars: (.stargazers_count // 0), language: (.language // "N/A")}]' repos.json > top_projects.json
+            jq '[.[0:3] | .[] | {name: (.name // "Unknown"), stars: (.stargazers_count // 0), language: (.language // "Unknown")}]' repos.json > top_projects.json 2>/dev/null || true
           fi
           
-          # Usar printf para outputs seguros
-          printf "avatar_url=%s\n" "$AVATAR_URL" >> $GITHUB_OUTPUT
-          printf "github_name=%s\n" "$GITHUB_NAME" >> $GITHUB_OUTPUT
-          printf "bio=%s\n" "$BIO" >> $GITHUB_OUTPUT
-          printf "public_repos=%s\n" "$PUBLIC_REPOS" >> $GITHUB_OUTPUT
-          printf "followers=%s\n" "$FOLLOWERS" >> $GITHUB_OUTPUT
+          # Cálculo de XP e Level (sistema Genshin-like)
+          # XP = (repos * 100) + (followers * 50) + (stars * 10)
+          TOTAL_XP=$((PUBLIC_REPOS * 100 + FOLLOWERS * 50 + STARS_TOTAL * 10))
+          if [ $TOTAL_XP -lt 1 ]; then
+            TOTAL_XP=100
+          fi
           
-          echo "✅ Dados coletados:"
-          echo "👤 Nome: $GITHUB_NAME"
-          echo "📝 Bio: $BIO"
-          echo "📦 Repos: $PUBLIC_REPOS"
-          echo "👥 Seguidores: $FOLLOWERS"
+          # Nível: cada nível requer XP * nível anterior * 1.5
+          # Nível 1: 0-100 XP, Nível 2: 101-250, etc
+          LEVEL=1
+          XP_REQUIRED=100
+          XP_CURRENT=$TOTAL_XP
+          
+          while [ $XP_CURRENT -ge $XP_REQUIRED ] && [ $LEVEL -lt 90 ]; do
+            XP_CURRENT=$((XP_CURRENT - XP_REQUIRED))
+            LEVEL=$((LEVEL + 1))
+            XP_REQUIRED=$(echo "$XP_REQUIRED * 1.5" | bc | cut -d. -f1)
+            if [ $XP_REQUIRED -lt 100 ]; then
+              XP_REQUIRED=100
+            fi
+          done
+          
+          # Garantir nível mínimo 1 e máximo 90
+          if [ $LEVEL -lt 1 ]; then LEVEL=1; fi
+          if [ $LEVEL -gt 90 ]; then LEVEL=90; fi
+          
+          # Percentual para próxima level
+          if [ $LEVEL -eq 90 ]; then
+            XP_PERCENT=100
+          else
+            XP_PERCENT=$((XP_CURRENT * 100 / XP_REQUIRED))
+          fi
+          
+          # Sistema de Ranking (F a S)
+          if [ $LEVEL -ge 80 ]; then RANK="S"
+          elif [ $LEVEL -ge 70 ]; then RANK="A+"
+          elif [ $LEVEL -ge 60 ]; then RANK="A"
+          elif [ $LEVEL -ge 50 ]; then RANK="B+"
+          elif [ $LEVEL -ge 40 ]; then RANK="B"
+          elif [ $LEVEL -ge 30 ]; then RANK="C+"
+          elif [ $LEVEL -ge 20 ]; then RANK="C"
+          elif [ $LEVEL -ge 10 ]; then RANK="D"
+          else RANK="F"
+          fi
+          
+          # Cores baseadas no elemento
+          case "${{ github.event.inputs.element }}" in
+            "Pyro") ELEMENT_COLOR="#FF6B35" ;;
+            "Hydro") ELEMENT_COLOR="#00A8E8" ;;
+            "Electro") ELEMENT_COLOR="#9D4EDD" ;;
+            "Anemo") ELEMENT_COLOR="#38B000" ;;
+            "Geo") ELEMENT_COLOR="#FF9E00" ;;
+            "Cryo") ELEMENT_COLOR="#90E0EF" ;;
+            "Dendro") ELEMENT_COLOR="#70E000" ;;
+            *) ELEMENT_COLOR="#6A0572" ;;
+          esac
+          
+          # Outputs seguros
+          echo "avatar_url=$AVATAR_URL" >> $GITHUB_OUTPUT
+          echo "public_repos=$PUBLIC_REPOS" >> $GITHUB_OUTPUT
+          echo "followers=$FOLLOWERS" >> $GITHUB_OUTPUT
+          echo "stars_total=$STARS_TOTAL" >> $GITHUB_OUTPUT
+          echo "user_bio=$USER_BIO" >> $GITHUB_OUTPUT
+          echo "total_xp=$TOTAL_XP" >> $GITHUB_OUTPUT
+          echo "level=$LEVEL" >> $GITHUB_OUTPUT
+          echo "xp_percent=$XP_PERCENT" >> $GITHUB_OUTPUT
+          echo "rank=$RANK" >> $GITHUB_OUTPUT
+          echo "element_color=$ELEMENT_COLOR" >> $GITHUB_OUTPUT
+          
+          echo "🎯 Dados calculados:"
+          echo "⚔️  Nível: $LEVEL"
+          echo "⭐ Rank: $RANK"
+          echo "📈 XP Total: $TOTAL_XP"
+          echo "📊 Próximo nível: $XP_PERCENT%"
       
       - name: 🎨 Criar diretório para cards
         run: mkdir -p cards
       
-      - name: 🖼️ Gerar Card Dev Minimalista
+      - name: 🖼️ Gerar Card Genshin Style
         run: |
-          # Dados do GitHub
+          # Dados calculados
           AVATAR_URL="${{ steps.github-data.outputs.avatar_url }}"
-          GITHUB_NAME="${{ steps.github-data.outputs.github_name }}"
-          BIO="${{ steps.github-data.outputs.bio }}"
           PUBLIC_REPOS="${{ steps.github-data.outputs.public_repos }}"
           FOLLOWERS="${{ steps.github-data.outputs.followers }}"
+          STARS_TOTAL="${{ steps.github-data.outputs.stars_total }}"
+          USER_BIO="${{ steps.github-data.outputs.user_bio }}"
+          TOTAL_XP="${{ steps.github-data.outputs.total_xp }}"
+          LEVEL="${{ steps.github-data.outputs.level }}"
+          XP_PERCENT="${{ steps.github-data.outputs.xp_percent }}"
+          RANK="${{ steps.github-data.outputs.rank }}"
+          ELEMENT_COLOR="${{ steps.github-data.outputs.element_color }}"
           
           # Inputs do usuário
-          FULL_NAME="${{ github.event.inputs.full_name }}"
-          if [ -z "$FULL_NAME" ] || [ "$FULL_NAME" = "null" ]; then
-            FULL_NAME="$GITHUB_NAME"
+          CHARACTER_NAME="${{ github.event.inputs.character_name }}"
+          if [ -z "$CHARACTER_NAME" ] || [ "$CHARACTER_NAME" = "null" ]; then
+            CHARACTER_NAME="${{ github.event.inputs.github_user }}"
           fi
           
-          COMPANY="${{ github.event.inputs.company }}"
-          ROLE="${{ github.event.inputs.role }}"
-          LOCATION="${{ github.event.inputs.location }}"
-          MAIN_LANG="${{ github.event.inputs.main_language }}"
-          FRAMEWORK="${{ github.event.inputs.framework }}"
-          DATABASE="${{ github.event.inputs.database }}"
-          EXPERIENCE="${{ github.event.inputs.experience }}"
-          AVAILABILITY="${{ github.event.inputs.availability }}"
+          CHARACTER_CLASS="${{ github.event.inputs.character_class }}"
+          ELEMENT="${{ github.event.inputs.element }}"
+          REGION="${{ github.event.inputs.region }}"
+          WEAPON_TYPE="${{ github.event.inputs.weapon_type }}"
+          SPECIAL_SKILL="${{ github.event.inputs.special_skill }}"
+          PLAYSTYLE="${{ github.event.inputs.playstyle }}"
+          
+          # Data atual
+          DATE=$(date +'%d/%m/%Y')
+          TIME=$(date +'%H:%M')
+          
+          # Nome do arquivo
+          FILENAME=$(echo "$CHARACTER_NAME" | tr ' ' '_' | tr -cd '[:alnum:]_-')
+          if [ -z "$FILENAME" ]; then
+            FILENAME="genshin_card"
+          fi
+          SVG_FILE="cards/${FILENAME}.svg"
           
           # Ler projetos top
-          PROJECT1_NAME=$(jq -r '.[0].name // ""' top_projects.json 2>/dev/null)
-          PROJECT1_STARS=$(jq -r '.[0].stars // 0' top_projects.json 2>/dev/null)
-          PROJECT1_LANG=$(jq -r '.[0].language // ""' top_projects.json 2>/dev/null)
+          PROJECT1_NAME="No repositories"
+          PROJECT1_STARS="0"
+          PROJECT1_LANG="???"
+          PROJECT2_NAME="No repositories"
+          PROJECT2_STARS="0"
+          PROJECT2_LANG="???"
+          PROJECT3_NAME="No repositories"
+          PROJECT3_STARS="0"
+          PROJECT3_LANG="???"
           
-          PROJECT2_NAME=$(jq -r '.[1].name // ""' top_projects.json 2>/dev/null)
-          PROJECT2_STARS=$(jq -r '.[1].stars // 0' top_projects.json 2>/dev/null)
-          PROJECT2_LANG=$(jq -r '.[1].language // ""' top_projects.json 2>/dev/null)
+          if [ -f top_projects.json ]; then
+            # Projeto 1
+            P1_NAME=$(jq -r '.[0].name // "No repositories"' top_projects.json 2>/dev/null)
+            P1_STARS=$(jq -r '.[0].stars // 0' top_projects.json 2>/dev/null)
+            P1_LANG=$(jq -r '.[0].language // "???"' top_projects.json 2>/dev/null)
+            
+            if [ "$P1_NAME" != "null" ] && [ -n "$P1_NAME" ]; then
+              PROJECT1_NAME="$P1_NAME"
+              PROJECT1_STARS="$P1_STARS"
+              PROJECT1_LANG="$P1_LANG"
+            fi
+            
+            # Projeto 2
+            P2_NAME=$(jq -r '.[1].name // "No repositories"' top_projects.json 2>/dev/null)
+            P2_STARS=$(jq -r '.[1].stars // 0' top_projects.json 2>/dev/null)
+            P2_LANG=$(jq -r '.[1].language // "???"' top_projects.json 2>/dev/null)
+            
+            if [ "$P2_NAME" != "null" ] && [ -n "$P2_NAME" ]; then
+              PROJECT2_NAME="$P2_NAME"
+              PROJECT2_STARS="$P2_STARS"
+              PROJECT2_LANG="$P2_LANG"
+            fi
+            
+            # Projeto 3
+            P3_NAME=$(jq -r '.[2].name // "No repositories"' top_projects.json 2>/dev/null)
+            P3_STARS=$(jq -r '.[2].stars // 0' top_projects.json 2>/dev/null)
+            P3_LANG=$(jq -r '.[2].language // "???"' top_projects.json 2>/dev/null)
+            
+            if [ "$P3_NAME" != "null" ] && [ -n "$P3_NAME" ]; then
+              PROJECT3_NAME="$P3_NAME"
+              PROJECT3_STARS="$P3_STARS"
+              PROJECT3_LANG="$P3_LANG"
+            fi
+          fi
           
-          PROJECT3_NAME=$(jq -r '.[2].name // ""' top_projects.json 2>/dev/null)
-          PROJECT3_STARS=$(jq -r '.[2].stars // 0' top_projects.json 2>/dev/null)
-          PROJECT3_LANG=$(jq -r '.[2].language // ""' top_projects.json 2>/dev/null)
+          # Limitar tamanho dos nomes dos projetos
+          PROJECT1_NAME=$(echo "$PROJECT1_NAME" | cut -c1-20)
+          PROJECT2_NAME=$(echo "$PROJECT2_NAME" | cut -c1-20)
+          PROJECT3_NAME=$(echo "$PROJECT3_NAME" | cut -c1-20)
           
-          # Valores padrão para projetos
-          [ -z "$PROJECT1_NAME" ] && PROJECT1_NAME="No projects" && PROJECT1_STARS=0 && PROJECT1_LANG="N/A"
-          [ -z "$PROJECT2_NAME" ] && PROJECT2_NAME="No projects" && PROJECT2_STARS=0 && PROJECT2_LANG="N/A"
-          [ -z "$PROJECT3_NAME" ] && PROJECT3_NAME="No projects" && PROJECT3_STARS=0 && PROJECT3_LANG="N/A"
-          
-          # Data
-          DATE=$(date +'%d/%m/%Y')
-          FILENAME=$(echo "$FULL_NAME" | tr ' ' '_' | tr -cd '[:alnum:]_')
-          SVG_FILE="cards/${FILENAME}_dev.svg"
-          
-          # Função para escape seguro de strings para SVG
+          # Função de escape para SVG
           escape_svg() {
             echo "$1" | sed \
               -e 's/&/\&amp;/g' \
               -e 's/</\&lt;/g' \
               -e 's/>/\&gt;/g' \
               -e 's/"/\&quot;/g' \
-              -e "s/'/\&apos;/g" \
-              -e 's/\\n/ /g' \
-              -e 's/\\r/ /g'
+              -e "s/'/\&apos;/g"
           }
           
-          # Escapar strings para SVG
-          FULL_NAME_ESC=$(escape_svg "$FULL_NAME")
-          COMPANY_ESC=$(escape_svg "$COMPANY")
-          ROLE_ESC=$(escape_svg "$ROLE")
-          BIO_ESC=$(escape_svg "$BIO")
-          LOCATION_ESC=$(escape_svg "$LOCATION")
-          MAIN_LANG_ESC=$(escape_svg "$MAIN_LANG")
-          FRAMEWORK_ESC=$(escape_svg "$FRAMEWORK")
-          DATABASE_ESC=$(escape_svg "$DATABASE")
+          # Escapar strings
+          CHAR_NAME_ESC=$(escape_svg "$CHARACTER_NAME")
+          CHAR_CLASS_ESC=$(escape_svg "$CHARACTER_CLASS")
+          ELEMENT_ESC=$(escape_svg "$ELEMENT")
+          REGION_ESC=$(escape_svg "$REGION")
+          WEAPON_ESC=$(escape_svg "$WEAPON_TYPE")
+          SKILL_ESC=$(escape_svg "$SPECIAL_SKILL")
+          PLAYSTYLE_ESC=$(escape_svg "$PLAYSTYLE")
+          BIO_ESC=$(escape_svg "$USER_BIO")
           PROJECT1_NAME_ESC=$(escape_svg "$PROJECT1_NAME")
           PROJECT1_LANG_ESC=$(escape_svg "$PROJECT1_LANG")
           PROJECT2_NAME_ESC=$(escape_svg "$PROJECT2_NAME")
@@ -195,139 +305,333 @@ jobs:
           PROJECT3_NAME_ESC=$(escape_svg "$PROJECT3_NAME")
           PROJECT3_LANG_ESC=$(escape_svg "$PROJECT3_LANG")
           
-          # Calcular largura da barra de disponibilidade
-          if [[ "$AVAILABILITY" =~ ^[0-9]+$ ]] && [ "$AVAILABILITY" -ge 0 ] && [ "$AVAILABILITY" -le 100 ]; then
-            BAR_WIDTH=$((320 * AVAILABILITY / 100))
-          else
-            BAR_WIDTH=256  # 80% como fallback
-            AVAILABILITY=80
-          fi
+          # Cores baseadas no rank
+          case "$RANK" in
+            "S") RANK_COLOR="#FFD700"; RANK_GLOW="#FFA500" ;;
+            "A+") RANK_COLOR="#FF6B6B"; RANK_GLOW="#FF3333" ;;
+            "A") RANK_COLOR="#FF8E8E"; RANK_GLOW="#FF6B6B" ;;
+            "B+") RANK_COLOR="#4ECDC4"; RANK_GLOW="#26A69A" ;;
+            "B") RANK_COLOR="#95E1D3"; RANK_GLOW="#4ECDC4" ;;
+            "C+") RANK_COLOR="#FFD166"; RANK_GLOW="#FFB347" ;;
+            "C") RANK_COLOR="#FFE8A0"; RANK_GLOW="#FFD166" ;;
+            "D") RANK_COLOR="#A0A0A0"; RANK_GLOW="#808080" ;;
+            *) RANK_COLOR="#808080"; RANK_GLOW="#606060" ;;
+          esac
           
-          # Criar SVG com escape correto
+          # Calcular largura da barra de XP
+          BAR_WIDTH=$((350 * XP_PERCENT / 100))
+          if [ $BAR_WIDTH -gt 350 ]; then BAR_WIDTH=350; fi
+          if [ $BAR_WIDTH -lt 0 ]; then BAR_WIDTH=0; fi
+          
+          # Criar SVG Genshin Impact Style
           cat > "$SVG_FILE" << EOF
-          <svg xmlns="http://www.w3.org/2000/svg" width="500" height="300" viewBox="0 0 500 300">
+          <svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800">
           <defs>
             <style>
-              @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400&display=swap');
+              @import url('https://fonts.googleapis.com/css2?family=Genshin+Impact&family=Noto+Sans+JP:wght@300;400;500;700&family=Orbitron:wght@400;500;700&display=swap');
               
-              .name { font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 600; fill: #1a1a1a; }
-              .title { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500; fill: #666666; }
-              .label { font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 400; fill: #888888; letter-spacing: 0.5px; text-transform: uppercase; }
-              .value { font-family: 'JetBrains Mono', monospace; font-size: 11px; fill: #333333; }
-              .bio { font-family: 'Inter', sans-serif; font-size: 12px; fill: #444444; line-height: 1.4; }
-              .project-name { font-family: 'JetBrains Mono', monospace; font-size: 10px; fill: #1a1a1a; }
-              .project-stats { font-family: 'Inter', sans-serif; font-size: 9px; fill: #666666; }
+              .genshin-font {
+                font-family: 'Genshin Impact', 'Noto Sans JP', sans-serif;
+              }
+              
+              .title-text {
+                font-family: 'Genshin Impact', 'Noto Sans JP', sans-serif;
+                font-size: 32px;
+                font-weight: 700;
+                fill: white;
+                text-shadow: 0 0 10px $ELEMENT_COLOR, 0 0 20px $ELEMENT_COLOR;
+                letter-spacing: 1px;
+              }
+              
+              .subtitle-text {
+                font-family: 'Noto Sans JP', sans-serif;
+                font-size: 18px;
+                font-weight: 500;
+                fill: #E0E0FF;
+                letter-spacing: 0.5px;
+              }
+              
+              .stat-label {
+                font-family: 'Noto Sans JP', sans-serif;
+                font-size: 14px;
+                font-weight: 400;
+                fill: #B0B0D0;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+              }
+              
+              .stat-value {
+                font-family: 'Orbitron', monospace;
+                font-size: 16px;
+                font-weight: 700;
+                fill: white;
+              }
+              
+              .rank-text {
+                font-family: 'Genshin Impact', 'Noto Sans JP', sans-serif;
+                font-size: 48px;
+                font-weight: 900;
+                fill: $RANK_COLOR;
+                text-shadow: 0 0 15px $RANK_GLOW, 0 0 30px $RANK_GLOW;
+              }
+              
+              .level-text {
+                font-family: 'Orbitron', monospace;
+                font-size: 28px;
+                font-weight: 900;
+                fill: white;
+                text-shadow: 0 0 10px $ELEMENT_COLOR;
+              }
+              
+              .xp-text {
+                font-family: 'Noto Sans JP', sans-serif;
+                font-size: 12px;
+                fill: #D0D0FF;
+              }
+              
+              .project-text {
+                font-family: 'Noto Sans JP', sans-serif;
+                font-size: 11px;
+                fill: #C0C0E0;
+              }
+              
+              .project-title {
+                font-family: 'Noto Sans JP', sans-serif;
+                font-size: 13px;
+                font-weight: 600;
+                fill: white;
+              }
+              
+              .bio-text {
+                font-family: 'Noto Sans JP', sans-serif;
+                font-size: 12px;
+                fill: #D0D0FF;
+                line-height: 1.4;
+              }
             </style>
             
-            <!-- Gradiente sutil -->
+            <!-- Gradientes Genshin Style -->
             <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#ffffff"/>
-              <stop offset="100%" stop-color="#f8f9fa"/>
+              <stop offset="0%" stop-color="#0A0A1A"/>
+              <stop offset="50%" stop-color="#1A1A2E"/>
+              <stop offset="100%" stop-color="#0A0A1A"/>
             </linearGradient>
             
-            <linearGradient id="expBar" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stop-color="#2563eb"/>
-              <stop offset="100%" stop-color="#3b82f6"/>
+            <linearGradient id="elementGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="$ELEMENT_COLOR"/>
+              <stop offset="50%" stop-color="#FFFFFF"/>
+              <stop offset="100%" stop-color="$ELEMENT_COLOR"/>
             </linearGradient>
+            
+            <linearGradient id="xpBarGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#FFD700"/>
+              <stop offset="50%" stop-color="#FFA500"/>
+              <stop offset="100%" stop-color="#FFD700"/>
+            </linearGradient>
+            
+            <linearGradient id="cardGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#1E1E2E" stop-opacity="0.9"/>
+              <stop offset="100%" stop-color="#2D2D44" stop-opacity="0.9"/>
+            </linearGradient>
+            
+            <!-- Padrão de estrelas -->
+            <pattern id="starPattern" width="20" height="20" patternUnits="userSpaceOnUse">
+              <circle cx="2" cy="2" r="1" fill="#FFFFFF" opacity="0.3"/>
+              <circle cx="10" cy="15" r="1" fill="#FFFFFF" opacity="0.3"/>
+              <circle cx="18" cy="5" r="1" fill="#FFFFFF" opacity="0.3"/>
+            </pattern>
+            
+            <!-- Filtros de efeito -->
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feMerge>
+                <feMergeNode in="blur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+            
+            <filter id="dropShadow">
+              <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000000" flood-opacity="0.5"/>
+            </filter>
           </defs>
           
-          <!-- Fundo clean -->
-          <rect width="500" height="300" fill="url(#bgGradient)"/>
-          <rect x="20" y="20" width="460" height="260" rx="12" fill="white" stroke="#e5e7eb" stroke-width="1"/>
+          <!-- Fundo cósmico -->
+          <rect width="600" height="800" fill="url(#bgGradient)"/>
+          <rect width="600" height="800" fill="url(#starPattern)" opacity="0.1"/>
           
-          <!-- Avatar -->
-          <defs>
-            <clipPath id="avatarClip">
-              <circle cx="70" cy="70" r="30"/>
-            </clipPath>
-          </defs>
+          <!-- Elementos decorativos de fundo -->
+          <circle cx="100" cy="100" r="50" fill="$ELEMENT_COLOR" opacity="0.1" filter="url(#glow)"/>
+          <circle cx="500" cy="700" r="80" fill="$ELEMENT_COLOR" opacity="0.1" filter="url(#glow)"/>
+          <rect x="200" y="300" width="200" height="200" rx="20" transform="rotate(45 300 400)" fill="$ELEMENT_COLOR" opacity="0.05"/>
           
-          <circle cx="70" cy="70" r="32" fill="#f3f4f6"/>
-          <circle cx="70" cy="70" r="30" fill="#f8fafc"/>
-          <image href="$AVATAR_URL" x="40" y="40" width="60" height="60" clip-path="url(#avatarClip)"/>
-          
-          <!-- Nome e título -->
-          <text x="120" y="55" class="name">$FULL_NAME_ESC</text>
-          <text x="120" y="75" class="title">$ROLE_ESC • $COMPANY_ESC</text>
-          
-          <!-- Stats do GitHub -->
-          <g transform="translate(120, 130)">
-            <rect x="0" y="0" width="100" height="30" rx="6" fill="#f8fafc"/>
-            <text x="10" y="12" class="label">Repos</text>
-            <text x="10" y="24" class="value" font-weight="600">$PUBLIC_REPOS</text>
-            
-            <rect x="110" y="0" width="100" height="30" rx="6" fill="#f8fafc"/>
-            <text x="120" y="12" class="label">Followers</text>
-            <text x="120" y="24" class="value" font-weight="600">$FOLLOWERS</text>
-            
-            <rect x="220" y="0" width="100" height="30" rx="6" fill="#f8fafc"/>
-            <text x="230" y="12" class="label">Exp</text>
-            <text x="230" y="24" class="value" font-weight="600">${EXPERIENCE}y</text>
+          <!-- Card principal -->
+          <g filter="url(#dropShadow)">
+            <rect x="30" y="30" width="540" height="740" rx="25" fill="url(#cardGradient)" stroke="$ELEMENT_COLOR" stroke-width="2" opacity="0.95"/>
           </g>
           
-          <!-- Tech Stack -->
-          <g transform="translate(20, 170)">
-            <text x="0" y="0" class="label">TECH STACK</text>
+          <!-- Cabeçalho com elemento -->
+          <rect x="30" y="30" width="540" height="100" rx="25" fill="$ELEMENT_COLOR" opacity="0.3"/>
+          <rect x="30" y="30" width="540" height="100" rx="25" fill="none" stroke="$ELEMENT_COLOR" stroke-width="3" opacity="0.7"/>
+          
+          <!-- Nome do personagem -->
+          <text x="300" y="85" text-anchor="middle" class="title-text">$CHAR_NAME_ESC</text>
+          
+          <!-- Classe e Elemento -->
+          <text x="300" y="115" text-anchor="middle" class="subtitle-text">$CHAR_CLASS_ESC • $ELEMENT_ESC</text>
+          
+          <!-- Nível e Rank -->
+          <g transform="translate(50, 160)">
+            <!-- Nível -->
+            <rect x="0" y="0" width="150" height="60" rx="15" fill="#2A2A3A" opacity="0.8"/>
+            <text x="75" y="25" text-anchor="middle" class="stat-label">NÍVEL</text>
+            <text x="75" y="50" text-anchor="middle" class="level-text">$LEVEL</text>
             
-            <g transform="translate(0, 15)">
-              <rect x="0" y="0" width="140" height="25" rx="4" fill="#eff6ff"/>
-              <text x="10" y="16" class="value">$MAIN_LANG_ESC</text>
+            <!-- Rank -->
+            <rect x="180" y="0" width="150" height="60" rx="15" fill="#2A2A3A" opacity="0.8"/>
+            <text x="255" y="25" text-anchor="middle" class="stat-label">RANK</text>
+            <text x="255" y="55" text-anchor="middle" class="rank-text">$RANK</text>
+            
+            <!-- XP Total -->
+            <rect x="360" y="0" width="150" height="60" rx="15" fill="#2A2A3A" opacity="0.8"/>
+            <text x="435" y="25" text-anchor="middle" class="stat-label">XP TOTAL</text>
+            <text x="435" y="50" text-anchor="middle" class="stat-value">$TOTAL_XP</text>
+          </g>
+          
+          <!-- Barra de XP (Estilo Trash Rock) -->
+          <g transform="translate(50, 240)">
+            <text x="0" y="0" class="stat-label">EXPERIÊNCIA</text>
+            <text x="400" y="0" class="xp-text" text-anchor="end">$XP_PERCENT% para o próximo nível</text>
+            
+            <!-- Barra de fundo -->
+            <rect x="0" y="20" width="400" height="20" rx="10" fill="#1A1A2A"/>
+            <rect x="0" y="20" width="400" height="20" rx="10" fill="none" stroke="#333344" stroke-width="2"/>
+            
+            <!-- Barra de XP preenchida -->
+            <rect x="0" y="20" width="$BAR_WIDTH" height="20" rx="10" fill="url(#xpBarGradient)"/>
+            
+            <!-- Efeito de brilho na barra -->
+            <rect x="0" y="20" width="$BAR_WIDTH" height="20" rx="10" fill="none" stroke="#FFD700" stroke-width="1" opacity="0.5"/>
+            
+            <!-- Marcadores de nível -->
+            <circle cx="50" cy="30" r="3" fill="white" opacity="0.5"/>
+            <circle cx="150" cy="30" r="3" fill="white" opacity="0.5"/>
+            <circle cx="250" cy="30" r="3" fill="white" opacity="0.5"/>
+            <circle cx="350" cy="30" r="3" fill="white" opacity="0.5"/>
+          </g>
+          
+          <!-- Stats do GitHub -->
+          <g transform="translate(50, 300)">
+            <text x="0" y="0" class="stat-label">STATS DO GITHUB</text>
+            
+            <g transform="translate(0, 30)">
+              <!-- Repositórios -->
+              <rect x="0" y="0" width="160" height="70" rx="15" fill="#252535" opacity="0.8"/>
+              <text x="80" y="25" text-anchor="middle" class="stat-label">Repositórios</text>
+              <text x="80" y="50" text-anchor="middle" class="stat-value">$PUBLIC_REPOS</text>
               
-              <rect x="150" y="0" width="140" height="25" rx="4" fill="#f0f9ff"/>
-              <text x="160" y="16" class="value">$FRAMEWORK_ESC</text>
+              <!-- Seguidores -->
+              <rect x="180" y="0" width="160" height="70" rx="15" fill="#252535" opacity="0.8"/>
+              <text x="260" y="25" text-anchor="middle" class="stat-label">Seguidores</text>
+              <text x="260" y="50" text-anchor="middle" class="stat-value">$FOLLOWERS</text>
               
-              <rect x="300" y="0" width="140" height="25" rx="4" fill="#f0fdf4"/>
-              <text x="310" y="16" class="value">$DATABASE_ESC</text>
+              <!-- Estrelas -->
+              <rect x="360" y="0" width="160" height="70" rx="15" fill="#252535" opacity="0.8"/>
+              <text x="440" y="25" text-anchor="middle" class="stat-label">Estrelas</text>
+              <text x="440" y="50" text-anchor="middle" class="stat-value">$STARS_TOTAL</text>
             </g>
           </g>
           
-          <!-- Barra de experiência -->
-          <g transform="translate(20, 220)">
-            <text x="0" y="0" class="label">AVAILABILITY</text>
-            <rect x="0" y="10" width="320" height="8" rx="4" fill="#e5e7eb"/>
-            <rect x="0" y="10" width="$BAR_WIDTH" height="8" rx="4" fill="url(#expBar)"/>
-            <text x="330" y="15" class="value">${AVAILABILITY}%</text>
+          <!-- Informações do Personagem -->
+          <g transform="translate(50, 400)">
+            <text x="0" y="0" class="stat-label">INFORMAÇÕES</text>
+            
+            <g transform="translate(0, 30)">
+              <!-- Região -->
+              <rect x="0" y="0" width="250" height="40" rx="10" fill="#2A2A3A" opacity="0.7"/>
+              <text x="15" y="15" class="stat-label" font-size="12">🏰 Região</text>
+              <text x="15" y="30" class="stat-value" font-size="14">$REGION_ESC</text>
+              
+              <!-- Arma -->
+              <rect x="270" y="0" width="250" height="40" rx="10" fill="#2A2A3A" opacity="0.7"/>
+              <text x="285" y="15" class="stat-label" font-size="12">⚔️ Arma</text>
+              <text x="285" y="30" class="stat-value" font-size="14">$WEAPON_ESC</text>
+              
+              <!-- Estilo -->
+              <rect x="0" y="50" width="250" height="40" rx="10" fill="#2A2A3A" opacity="0.7"/>
+              <text x="15" y="65" class="stat-label" font-size="12">🎭 Estilo</text>
+              <text x="15" y="80" class="stat-value" font-size="14">$PLAYSTYLE_ESC</text>
+              
+              <!-- Habilidade -->
+              <rect x="270" y="50" width="250" height="40" rx="10" fill="#2A2A3A" opacity="0.7"/>
+              <text x="285" y="65" class="stat-label" font-size="12">✨ Habilidade</text>
+              <text x="285" y="80" class="stat-value" font-size="14">$SKILL_ESC</text>
+            </g>
+          </g>
+          
+          <!-- Bio -->
+          <g transform="translate(50, 500)">
+            <rect x="0" y="0" width="500" height="60" rx="10" fill="#2A2A3A" opacity="0.7"/>
+            <text x="15" y="20" class="stat-label">📖 BIOGRAFIA</text>
+            <text x="15" y="40" class="bio-text">$BIO_ESC</text>
           </g>
           
           <!-- Projetos Top -->
-          <g transform="translate(20, 245)">
-            <text x="0" y="0" class="label">TOP PROJECTS</text>
+          <g transform="translate(50, 580)">
+            <text x="0" y="0" class="stat-label">PROJETOS DESTAQUES</text>
             
-            <g transform="translate(0, 15)">
+            <g transform="translate(0, 30)">
               <!-- Projeto 1 -->
-              <rect x="0" y="0" width="140" height="40" rx="6" fill="#f8fafc"/>
-              <text x="10" y="15" class="project-name">$PROJECT1_NAME_ESC</text>
-              <text x="10" y="28" class="project-stats">⭐ $PROJECT1_STARS • $PROJECT1_LANG_ESC</text>
+              <rect x="0" y="0" width="160" height="80" rx="15" fill="#252535" opacity="0.8"/>
+              <text x="80" y="20" text-anchor="middle" class="project-title">$PROJECT1_NAME_ESC</text>
+              <text x="80" y="35" text-anchor="middle" class="project-text">⭐ $PROJECT1_STARS estrelas</text>
+              <text x="80" y="50" text-anchor="middle" class="project-text">🔧 $PROJECT1_LANG_ESC</text>
               
               <!-- Projeto 2 -->
-              <rect x="150" y="0" width="140" height="40" rx="6" fill="#f8fafc"/>
-              <text x="160" y="15" class="project-name">$PROJECT2_NAME_ESC</text>
-              <text x="160" y="28" class="project-stats">⭐ $PROJECT2_STARS • $PROJECT2_LANG_ESC</text>
+              <rect x="180" y="0" width="160" height="80" rx="15" fill="#252535" opacity="0.8"/>
+              <text x="260" y="20" text-anchor="middle" class="project-title">$PROJECT2_NAME_ESC</text>
+              <text x="260" y="35" text-anchor="middle" class="project-text">⭐ $PROJECT2_STARS estrelas</text>
+              <text x="260" y="50" text-anchor="middle" class="project-text">🔧 $PROJECT2_LANG_ESC</text>
               
               <!-- Projeto 3 -->
-              <rect x="300" y="0" width="140" height="40" rx="6" fill="#f8fafc"/>
-              <text x="310" y="15" class="project-name">$PROJECT3_NAME_ESC</text>
-              <text x="310" y="28" class="project-stats">⭐ $PROJECT3_STARS • $PROJECT3_LANG_ESC</text>
+              <rect x="360" y="0" width="160" height="80" rx="15" fill="#252535" opacity="0.8"/>
+              <text x="440" y="20" text-anchor="middle" class="project-title">$PROJECT3_NAME_ESC</text>
+              <text x="440" y="35" text-anchor="middle" class="project-text">⭐ $PROJECT3_STARS estrelas</text>
+              <text x="440" y="50" text-anchor="middle" class="project-text">🔧 $PROJECT3_LANG_ESC</text>
             </g>
           </g>
           
           <!-- Footer -->
-          <g transform="translate(20, 290)">
-            <text x="0" y="0" class="label">📍 $LOCATION_ESC</text>
-            <text x="350" y="0" class="label" text-anchor="end">Updated: $DATE</text>
+          <g transform="translate(50, 690)">
+            <rect x="0" y="0" width="500" height="40" rx="10" fill="#1A1A2A" opacity="0.8"/>
+            <text x="15" y="25" class="project-text">🎮 Genshin Dev Card • $DATE $TIME</text>
+            <text x="485" y="25" class="project-text" text-anchor="end">Nível $LEVEL • Rank $RANK</text>
           </g>
           
-          <!-- Linhas decorativas minimalistas -->
-          <line x1="20" y1="165" x2="480" y2="165" stroke="#e5e7eb" stroke-width="1"/>
-          <line x1="20" y1="215" x2="480" y2="215" stroke="#e5e7eb" stroke-width="1"/>
-          <line x1="20" y1="240" x2="480" y2="240" stroke="#e5e7eb" stroke-width="1"/>
+          <!-- Efeitos decorativos -->
+          <!-- Estrelas brilhantes -->
+          <circle cx="550" cy="150" r="2" fill="#FFD700" opacity="0.8">
+            <animate attributeName="opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite"/>
+          </circle>
+          <circle cx="50" cy="250" r="2" fill="#00A8E8" opacity="0.8">
+            <animate attributeName="opacity" values="0.3;1;0.3" dur="2.5s" repeatCount="indefinite"/>
+          </circle>
+          <circle cx="400" cy="500" r="2" fill="#FF6B35" opacity="0.8">
+            <animate attributeName="opacity" values="0.3;1;0.3" dur="3s" repeatCount="indefinite"/>
+          </circle>
+          
+          <!-- Elemento flutuante -->
+          <path d="M300 750 Q320 730 340 750 T380 750" fill="none" stroke="$ELEMENT_COLOR" stroke-width="2" opacity="0.5">
+            <animate attributeName="d" values="M300 750 Q320 730 340 750 T380 750;M300 750 Q320 770 340 750 T380 750;M300 750 Q320 730 340 750 T380 750" dur="4s" repeatCount="indefinite"/>
+          </path>
           
           </svg>
           
-          echo "✅ Card Dev criado: $SVG_FILE"
-          echo "👨‍💻 Design: Minimalista Dev"
-          echo "📊 Stats: $PUBLIC_REPOS repos, $FOLLOWERS followers"
-          echo "⭐ Top Projeto: $PROJECT1_NAME ($PROJECT1_STARS ⭐)"
+          echo "✨ Card Genshin criado: $SVG_FILE"
+          echo "🎮 Estilo: Genshin Impact"
+          echo "⚔️ Nível: $LEVEL"
+          echo "⭐ Rank: $RANK"
+          echo "📈 XP: $TOTAL_XP ($XP_PERCENT% para próximo)"
+          echo "🔥 Elemento: $ELEMENT"
       
       - name: 📤 Salvar card
         run: |
@@ -335,6 +639,6 @@ jobs:
           git config user.email "github-actions@github.com"
           
           git add cards/
-          git commit -m "👨‍💻 Add dev card: ${{ github.event.inputs.github_user }}" || echo "Sem alterações"
+          git commit -m "⚔️ Add Genshin card: ${{ github.event.inputs.github_user }} (Nível ${{ steps.github-data.outputs.level }})" || echo "Sem alterações"
           git push || echo "Push falhou ou sem alterações"
           echo "✅ Workflow completo!"
