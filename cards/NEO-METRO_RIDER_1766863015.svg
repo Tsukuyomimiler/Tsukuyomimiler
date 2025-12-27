@@ -1,0 +1,331 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000">
+<defs>
+  <!-- FONTES CYBER -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&family=Share+Tech+Mono&display=swap');
+    
+    .metro-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 36px;
+      font-weight: 900;
+      fill: #00FFAA;
+      text-shadow: 0 0 10px #00FFFF, 0 0 20px #00FFFF;
+      letter-spacing: 2px;
+    }
+    
+    .metro-subtitle {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+      fill: #FF00FF;
+      letter-spacing: 1px;
+    }
+    
+    .metro-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 12px;
+      fill: #AAAAAA;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .metro-value {
+      font-family: 'Orbitron', monospace;
+      font-size: 20px;
+      font-weight: 700;
+      fill: white;
+    }
+    
+    .metro-rank {
+      font-family: 'Orbitron', monospace;
+      font-size: 64px;
+      font-weight: 900;
+      fill: #A0A0A0;
+      text-shadow: 0 0 15px #808080, 0 0 30px #808080;
+    }
+    
+    .metro-xp {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 14px;
+      fill: #CCCCCC;
+    }
+    
+    .metro-project {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px;
+      fill: #DDDDDD;
+    }
+    
+    .metro-bio {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 10px;
+      fill: #BBBBBB;
+      line-height: 1.3;
+    }
+  </style>
+  
+  <!-- GRADIENTES METRO -->
+  <linearGradient id="metroBg" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#0A0A0A"/>
+    <stop offset="50%" stop-color="#111111"/>
+    <stop offset="100%" stop-color="#0A0A0A"/>
+  </linearGradient>
+  
+  <linearGradient id="primaryGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#00FFAA" stop-opacity="0.7"/>
+    <stop offset="50%" stop-color="#FF00FF" stop-opacity="0.9"/>
+    <stop offset="100%" stop-color="#00FFAA" stop-opacity="0.7"/>
+  </linearGradient>
+  
+  <linearGradient id="xpBarGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#00FFAA"/>
+    <stop offset="50%" stop-color="#00FFFF"/>
+    <stop offset="100%" stop-color="#FF00FF"/>
+  </linearGradient>
+  
+  <!-- PADRÕES DE GRADE METRO -->
+  <pattern id="gridPattern" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#00FFAA" stroke-width="0.5" opacity="0.3"/>
+  </pattern>
+  
+  <pattern id="circuitPattern" width="100" height="100" patternUnits="userSpaceOnUse">
+    <circle cx="50" cy="50" r="2" fill="#FF00FF" opacity="0.2"/>
+    <path d="M20,50 H80 M50,20 V80" stroke="#00FFAA" stroke-width="0.3" opacity="0.1" fill="none"/>
+  </pattern>
+  
+  <!-- FILTROS DE EFEITO -->
+  <filter id="metroGlow">
+    <feGaussianBlur stdDeviation="3" result="blur"/>
+    <feMerge>
+      <feMergeNode in="blur"/>
+      <feMergeNode in="SourceGraphic"/>
+    </feMerge>
+  </filter>
+  
+  <filter id="neonGlow">
+    <feGaussianBlur stdDeviation="5" result="blur"/>
+    <feFlood flood-color="#00FFFF" flood-opacity="0.5"/>
+    <feComposite in2="blur" operator="in"/>
+    <feMerge>
+      <feMergeNode in="blur"/>
+      <feMergeNode in="SourceGraphic"/>
+    </feMerge>
+  </filter>
+  
+  <!-- MÁSCARA PARA BARRAS -->
+  <clipPath id="barClip">
+    <rect x="0" y="0" width="400" height="20" rx="10"/>
+  </clipPath>
+</defs>
+
+<!-- FUNDO METRO -->
+<rect width="800" height="1000" fill="url(#metroBg)"/>
+<rect width="800" height="1000" fill="url(#gridPattern)" opacity="0.1"/>
+<rect width="800" height="1000" fill="url(#circuitPattern)" opacity="0.05"/>
+
+<!-- ELEMENTOS DE FUNDO DINÂMICOS -->
+<circle cx="100" cy="150" r="60" fill="#00FFAA" opacity="0.05" filter="url(#metroGlow)"/>
+<circle cx="700" cy="800" r="80" fill="#FF00FF" opacity="0.05" filter="url(#metroGlow)"/>
+<rect x="300" y="400" width="200" height="200" rx="20" transform="rotate(45 400 500)" fill="#00FFFF" opacity="0.03"/>
+
+<!-- CARD PRINCIPAL -->
+<g filter="url(#neonGlow)">
+  <rect x="50" y="50" width="700" height="900" rx="30" fill="#111111" opacity="0.95" stroke="#00FFAA" stroke-width="3"/>
+</g>
+
+<!-- CABEÇALHO METRO -->
+<rect x="50" y="50" width="700" height="120" rx="30" fill="url(#primaryGrad)" opacity="0.8"/>
+<rect x="50" y="50" width="700" height="120" rx="30" fill="none" stroke="#00FFFF" stroke-width="2" opacity="0.6"/>
+
+<!-- NOME DO JOGADOR -->
+<text x="400" y="110" text-anchor="middle" class="metro-title">NEO-METRO RIDER</text>
+
+<!-- FACÇÃO E NÚCLEO -->
+<text x="400" y="140" text-anchor="middle" class="metro-subtitle">CORPO • QUANTUM CORE</text>
+
+<!-- SEÇÃO DE STATUS PRINCIPAL -->
+<g transform="translate(100, 200)">
+  <!-- NÍVEL -->
+  <rect x="0" y="0" width="180" height="80" rx="15" fill="#1A1A1A" opacity="0.9"/>
+  <rect x="0" y="0" width="180" height="80" rx="15" fill="none" stroke="#00FFAA" stroke-width="2" opacity="0.5"/>
+  <text x="90" y="30" text-anchor="middle" class="metro-label">NÍVEL</text>
+  <text x="90" y="60" text-anchor="middle" class="metro-value">2</text>
+  
+  <!-- RANK -->
+  <rect x="200" y="0" width="180" height="80" rx="15" fill="#1A1A1A" opacity="0.9"/>
+  <rect x="200" y="0" width="180" height="80" rx="15" fill="none" stroke="#A0A0A0" stroke-width="2" opacity="0.7"/>
+  <text x="290" y="30" text-anchor="middle" class="metro-label">RANK</text>
+  <text x="290" y="70" text-anchor="middle" class="metro-rank">D</text>
+  
+  <!-- XP TOTAL -->
+  <rect x="400" y="0" width="180" height="80" rx="15" fill="#1A1A1A" opacity="0.9"/>
+  <rect x="400" y="0" width="180" height="80" rx="15" fill="none" stroke="#FF00FF" stroke-width="2" opacity="0.5"/>
+  <text x="490" y="30" text-anchor="middle" class="metro-label">XP TOTAL</text>
+  <text x="490" y="60" text-anchor="middle" class="metro-value">1000</text>
+</g>
+
+<!-- BARRA DE XP MEGA -->
+<g transform="translate(100, 300)">
+  <text x="0" y="0" class="metro-label">EXPERIÊNCIA MATRIX</text>
+  <text x="400" y="0" class="metro-xp" text-anchor="end">50% • / XP</text>
+  
+  <!-- BARRA DE FUNDO -->
+  <rect x="0" y="20" width="400" height="30" rx="15" fill="#0A0A0A"/>
+  <rect x="0" y="20" width="400" height="30" rx="15" fill="none" stroke="#333333" stroke-width="2"/>
+  
+  <!-- BARRA DE XP ANIMADA -->
+  <rect x="0" y="20" width="200" height="30" rx="15" fill="url(#xpBarGrad)" clip-path="url(#barClip)"/>
+  
+  <!-- MARCADORES DE NÍVEL -->
+  <circle cx="80" cy="35" r="3" fill="white" opacity="0.5"/>
+  <circle cx="160" cy="35" r="3" fill="white" opacity="0.5"/>
+  <circle cx="240" cy="35" r="3" fill="white" opacity="0.5"/>
+  <circle cx="320" cy="35" r="3" fill="white" opacity="0.5"/>
+  
+  <!-- EFEITO DE PULSO NA BARRA -->
+  <rect x="0" y="20" width="200" height="30" rx="15" fill="none" stroke="#00FFFF" stroke-width="1" opacity="0.7">
+    <animate attributeName="opacity" values="0.3;0.7;0.3" dur="2s" repeatCount="indefinite"/>
+  </rect>
+</g>
+
+<!-- BIO MATRIX -->
+<g transform="translate(100, 360)">
+  <rect x="0" y="0" width="600" height="60" rx="10" fill="#1A1A1A" opacity="0.8"/>
+  <text x="10" y="20" class="metro-label">📡 MATRIX BIO</text>
+  <text x="10" y="40" class="metro-bio">einfach leben</text>
+</g>
+
+<!-- STATS GITHUB EM GRADE 3x2 -->
+<g transform="translate(100, 440)">
+  <text x="0" y="0" class="metro-label">STATS GITHUB</text>
+  
+  <g transform="translate(0, 30)">
+    <!-- LINHA 1 -->
+    <!-- REPOS -->
+    <rect x="0" y="0" width="190" height="70" rx="10" fill="#222222" opacity="0.9"/>
+    <text x="95" y="25" text-anchor="middle" class="metro-label">Repositórios</text>
+    <text x="95" y="50" text-anchor="middle" class="metro-value" fill="#00FFAA">2</text>
+    
+    <!-- FOLLOWERS -->
+    <rect x="210" y="0" width="190" height="70" rx="10" fill="#222222" opacity="0.9"/>
+    <text x="305" y="25" text-anchor="middle" class="metro-label">Seguidores</text>
+    <text x="305" y="50" text-anchor="middle" class="metro-value" fill="#FF00FF">0</text>
+    
+    <!-- STARS -->
+    <rect x="420" y="0" width="190" height="70" rx="10" fill="#222222" opacity="0.9"/>
+    <text x="515" y="25" text-anchor="middle" class="metro-label">Estrelas</text>
+    <text x="515" y="50" text-anchor="middle" class="metro-value" fill="#00FFFF">0</text>
+    
+    <!-- LINHA 2 -->
+    <!-- COMMITS -->
+    <rect x="0" y="90" width="190" height="70" rx="10" fill="#222222" opacity="0.9"/>
+    <text x="95" y="115" text-anchor="middle" class="metro-label">Commits</text>
+    <text x="95" y="140" text-anchor="middle" class="metro-value">34</text>
+    
+    <!-- PRs -->
+    <rect x="210" y="90" width="190" height="70" rx="10" fill="#222222" opacity="0.9"/>
+    <text x="305" y="115" text-anchor="middle" class="metro-label">Pull Requests</text>
+    <text x="305" y="140" text-anchor="middle" class="metro-value">0</text>
+    
+    <!-- ISSUES -->
+    <rect x="420" y="90" width="190" height="70" rx="10" fill="#222222" opacity="0.9"/>
+    <text x="515" y="115" text-anchor="middle" class="metro-label">Issues</text>
+    <text x="515" y="140" text-anchor="middle" class="metro-value">1</text>
+  </g>
+</g>
+
+<!-- BARRAS DE MÉTRICAS AVANÇADAS -->
+<g transform="translate(100, 620)">
+  <text x="0" y="0" class="metro-label">MÉTRICAS AVANÇADAS</text>
+  
+  <g transform="translate(0, 30)">
+    <!-- EFICIÊNCIA -->
+    <text x="0" y="15" class="metro-xp">EFICIÊNCIA</text>
+    <rect x="100" y="5" width="100" height="15" rx="7" fill="#1A1A1A"/>
+    <rect x="100" y="5" width="100" height="15" rx="7" fill="#00FFAA"/>
+    <text x="205" y="15" class="metro-xp">11.3</text>
+    
+    <!-- ATIVIDADE -->
+    <text x="0" y="45" class="metro-xp">ATIVIDADE</text>
+    <rect x="100" y="35" width="100" height="15" rx="7" fill="#1A1A1A"/>
+    <rect x="100" y="35" width="10" height="15" rx="7" fill="#FF00FF"/>
+    <text x="205" y="45" class="metro-xp">1/dia</text>
+    
+    <!-- IMPACTO -->
+    <text x="0" y="75" class="metro-xp">IMPACTO</text>
+    <rect x="100" y="65" width="100" height="15" rx="7" fill="#1A1A1A"/>
+    <rect x="100" y="65" width="0" height="15" rx="7" fill="#00FFFF"/>
+    <text x="205" y="75" class="metro-xp">0</text>
+  </g>
+</g>
+
+<!-- PROJETOS TOP EM GRADE -->
+<g transform="translate(100, 730)">
+  <text x="0" y="0" class="metro-label">PROJETOS MATRIX</text>
+  
+  <g transform="translate(0, 30)">
+    <!-- PROJETO 1 -->
+    <rect x="0" y="0" width="150" height="80" rx="10" fill="#222222" opacity="0.9"/>
+    <text x="75" y="20" text-anchor="middle" class="metro-project" font-weight="600">VOID-CORE</text>
+    <text x="75" y="35" text-anchor="middle" class="metro-project">⭐ 0 🍴 0</text>
+    <text x="75" y="50" text-anchor="middle" class="metro-project">⚙️ BINARY</text>
+    
+    <!-- PROJETO 2 -->
+    <rect x="160" y="0" width="150" height="80" rx="10" fill="#222222" opacity="0.9"/>
+    <text x="235" y="20" text-anchor="middle" class="metro-project" font-weight="600">NEURAL-NET</text>
+    <text x="235" y="35" text-anchor="middle" class="metro-project">⭐ 0 🍴 0</text>
+    <text x="235" y="50" text-anchor="middle" class="metro-project">⚙️ SYNTAX</text>
+    
+    <!-- PROJETO 3 -->
+    <rect x="320" y="0" width="150" height="80" rx="10" fill="#222222" opacity="0.9"/>
+    <text x="395" y="20" text-anchor="middle" class="metro-project" font-weight="600">QUANTUM-DB</text>
+    <text x="395" y="35" text-anchor="middle" class="metro-project">⭐ 0 🍴 0</text>
+    <text x="395" y="50" text-anchor="middle" class="metro-project">⚙️ QUERY</text>
+    
+    <!-- PROJETO 4 -->
+    <rect x="480" y="0" width="150" height="80" rx="10" fill="#222222" opacity="0.9"/>
+    <text x="555" y="20" text-anchor="middle" class="metro-project" font-weight="600">CHAOS-ENGINE</text>
+    <text x="555" y="35" text-anchor="middle" class="metro-project">⭐ 0 🍴 0</text>
+    <text x="555" y="50" text-anchor="middle" class="metro-project">⚙️ FUZZY</text>
+  </g>
+</g>
+
+<!-- RODAPÉ METRO -->
+<g transform="translate(100, 850)">
+  <rect x="0" y="0" width="600" height="40" rx="10" fill="#0A0A0A" opacity="0.9"/>
+  <text x="10" y="25" class="metro-xp">⚡ METRO GOTHIC XP SYSTEM • 2025.12.27 19:16:55</text>
+  <text x="590" y="25" class="metro-xp" text-anchor="end">ID: 1766863015</text>
+</g>
+
+<!-- ANIMAÇÕES E EFEITOS -->
+<!-- PONTOS BRILHANTES -->
+<circle cx="100" cy="100" r="2" fill="#00FFFF" opacity="0.8">
+  <animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite"/>
+</circle>
+
+<circle cx="700" cy="200" r="2" fill="#00FFAA" opacity="0.8">
+  <animate attributeName="opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite"/>
+</circle>
+
+<circle cx="150" cy="900" r="2" fill="#FF00FF" opacity="0.8">
+  <animate attributeName="opacity" values="0.3;1;0.3" dur="2.5s" repeatCount="indefinite"/>
+</circle>
+
+<!-- LINHAS SCAN -->
+<line x1="50" y1="180" x2="750" y2="180" stroke="#00FFFF" stroke-width="1" opacity="0.3">
+  <animate attributeName="opacity" values="0.1;0.5;0.1" dur="3s" repeatCount="indefinite"/>
+</line>
+
+<!-- CÓDIGO BINÁRIO DECORATIVO -->
+<text x="750" y="50" text-anchor="end" class="metro-xp" opacity="0.1">10101010</text>
+<text x="750" y="70" text-anchor="end" class="metro-xp" opacity="0.1">01010101</text>
+<text x="50" y="980" class="metro-xp" opacity="0.1">SYSTEM: ONLINE</text>
+
+</svg>
+
+echo "⚡✅ CARD METRO GOTHIC CRIADO: cards/NEO-METRO_RIDER_1766863015.svg"
+echo "🎮 Sistema XP: Nível 2 | Rank D"
+echo "📊 XP Total: 1000 (50% progresso)"
+echo "🔥 Métricas: Eficiência 11.3 | Atividade 1/dia"
+echo "💫 Cores: #00FFAA | #FF00FF | #00FFFF"
+echo "✅ Card gerado com SUCESSO ABSOLUTO!"
