@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400">
+  <!-- Fundo -->
+  <rect width="600" height="400" fill="#f0f0f0" stroke="#000" stroke-width="3"/>
+  
+  <!-- Cabeçalho -->
+  <rect x="20" y="20" width="560" height="60" fill="#fff" stroke="#000" stroke-width="2"/>
+  <text x="40" y="55" font-family="Arial" font-size="36" font-weight="bold">H/N</text>
+  <text x="450" y="35" font-family="Arial" font-size="20">SLASS</text>
+  <text x="450" y="60" font-family="Courier" font-size="18" font-weight="bold">Superhero</text>
+  
+  <!-- Informações -->
+  <text x="30" y="95" font-family="Arial" font-size="20">GUIDE</text>
+  <text x="100" y="95" font-family="Courier" font-size="16" font-weight="bold">14Ball Official</text>
+  <text x="300" y="95" font-family="Arial" font-size="18">GENDER/SPECIES</text>
+  <text x="480" y="95" font-family="Courier" font-size="16" font-weight="bold">Human</text>
+  
+  <!-- Linha -->
+  <line x1="20" y1="105" x2="580" y2="105" stroke="#000" stroke-width="1"/>
+  
+  <!-- História -->
+  <rect x="20" y="115" width="560" height="60" fill="#e8e8e8" stroke="#000" stroke-width="1"/>
+  <text x="30" y="135" font-family="Arial" font-size="22" fill="#8b0000" font-weight="bold">INV$</text>
+  <text x="30" y="155" font-family="Courier" font-size="12" font-weight="bold">Backstory:</text>
+  <text x="30" y="170" font-family="Courier" font-size="11">Being from another dimension, H/N doesn't have any powers. Though, being a very good fighter mixed with having knowledge of most everything makes him a formidable adversary.</text>
+  
+  <!-- Título Stats -->
+  <text x="30" y="205" font-family="Arial" font-size="24" fill="#8b0000" font-weight="bold">STATS/#SKILLS</text>
+  
+  <!-- Stats - Coluna Esquerda -->
+  <!-- STRENGTH -->
+  <text x="30" y="235" font-family="Arial" font-size="20">STRENGTH</text>
+  <rect x="150" y="220" width="150" height="15" fill="#ccc" stroke="#000" stroke-width="1"/>
+  <rect x="150" y="220" width="105" height="15" fill="#8b0000"/>
+  <text x="310" y="233" font-family="Courier" font-size="14" font-weight="bold">7/10</text>
+  
+  <!-- HEALTH -->
+  <text x="30" y="265" font-family="Arial" font-size="20">HEALTH</text>
+  <rect x="150" y="250" width="150" height="15" fill="#ccc" stroke="#000" stroke-width="1"/>
+  <rect x="150" y="250" width="120" height="15" fill="#8b0000"/>
+  <text x="310" y="263" font-family="Courier" font-size="14" font-weight="bold">8/10</text>
+  
+  <!-- MAGIC POW -->
+  <text x="30" y="295" font-family="Arial" font-size="20">MAGIC POW</text>
+  <rect x="150" y="280" width="150" height="15" fill="#ccc" stroke="#000" stroke-width="1"/>
+  <rect x="150" y="280" width="75" height="15" fill="#8b0000"/>
+  <text x="310" y="293" font-family="Courier" font-size="14" font-weight="bold">5/10</text>
+  
+  <!-- Stats - Coluna Direita -->
+  <!-- DEXTERITY -->
+  <text x="30" y="325" font-family="Arial" font-size="20">DEXTERITY</text>
+  <rect x="150" y="310" width="150" height="15" fill="#ccc" stroke="#000" stroke-width="1"/>
+  <rect x="150" y="310" width="135" height="15" fill="#8b0000"/>
+  <text x="310" y="323" font-family="Courier" font-size="14" font-weight="bold">9/10</text>
+  
+  <!-- AGILITY -->
+  <text x="30" y="355" font-family="Arial" font-size="20">AGILITY</text>
+  <rect x="150" y="340" width="150" height="15" fill="#ccc" stroke="#000" stroke-width="1"/>
+  <rect x="150" y="340" width="120" height="15" fill="#8b0000"/>
+  <text x="310" y="353" font-family="Courier" font-size="14" font-weight="bold">8/10</text>
+  
+  <!-- LUCK -->
+  <text x="30" y="385" font-family="Arial" font-size="20">LUCK</text>
+  <rect x="150" y="370" width="150" height="15" fill="#ccc" stroke="#000" stroke-width="1"/>
+  <rect x="150" y="370" width="90" height="15" fill="#8b0000"/>
+  <text x="310" y="383" font-family="Courier" font-size="14" font-weight="bold">6/10</text>
+  
+  <!-- Skills -->
+  <text x="400" y="235" font-family="Arial" font-size="22" fill="#8b0000" font-weight="bold">ACTIVE SKILLS</text>
+  <rect x="400" y="245" width="160" height="120" fill="#e8e8e8" stroke="#000" stroke-width="1"/>
+  <text x="410" y="265" font-family="Courier" font-size="14" font-weight="bold">• Determination</text>
+  <text x="410" y="285" font-family="Courier" font-size="14" font-weight="bold">• Spinitzu</text>
+  <text x="410" y="305" font-family="Courier" font-size="14" font-weight="bold" opacity="0.5">• [Empty Slot]</text>
+  <text x="410" y="325" font-family="Courier" font-size="14" font-weight="bold" opacity="0.5">• [Empty Slot]</text>
+  
+  <!-- Footer -->
+  <text x="30" y="420" font-family="Arial" font-size="22" fill="#8b0000" font-weight="bold">SUPERHERO</text>
+  
+  <!-- Ranking -->
+  <rect x="400" y="385" width="160" height="50" fill="#fff" stroke="#000" stroke-width="2"/>
+  <text x="410" y="405" font-family="Arial" font-size="20">RANKING</text>
+  <text x="475" y="430" font-family="Arial" font-size="32" font-weight="bold" fill="#FF4500">A</text>
+  
+  <!-- Data -->
+  <text x="30" y="450" font-family="Courier" font-size="10">Generated: 27/12/2025</text>
+  <text x="400" y="450" font-family="Courier" font-size="10">Card ID: HN</text>
+  
+  <!-- Cantos decorativos -->
+  <rect x="15" y="15" width="10" height="10" fill="#8b0000"/>
+  <rect x="575" y="15" width="10" height="10" fill="#8b0000"/>
+  <rect x="15" y="375" width="10" height="10" fill="#8b0000"/>
+  <rect x="575" y="375" width="10" height="10" fill="#8b0000"/>
+</svg>
