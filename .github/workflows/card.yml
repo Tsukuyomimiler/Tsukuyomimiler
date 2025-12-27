@@ -1,21 +1,21 @@
-name: Guild Kai - RPG Card
+name: Guild Card - ciconha
 
 on:
   schedule:
-    - cron: '0 0 * * 0'  # Executa todo domingo à meia-noite
-  workflow_dispatch:      # Permite execução manual
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
   push:
     branches: [ main, master ]
     paths:
-      - '.github/workflows/guild-kai.yml'
+      - '.github/workflows/guild.yml'
 
 permissions:
   contents: write
 
 jobs:
-  generate-rpg-card:
+  generate-guild-card:
     runs-on: ubuntu-latest
-    name: 🛡️ Generate RPG Card
+    name: Generate RPG Guild Card
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -32,12 +32,18 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Generate RPG Card SVG
+      - name: Generate Guild Card SVG
         env:
           GITHUB_USERNAME: "ciconha"
+          CARD_STYLE: "medieval"
+          CARD_SIZE: "medium"
+          CARD_LAYOUT: "banner"
           USER_CLASS: "🚀 Lenda Fullstack"
           USER_AREA: "fullstack"
+          USER_AGE: "20"
           USER_COMPANY: "INSS"
+          INCLUDE_STATS: "basic"
+          LANGUAGE: "pt"
         run: |
           echo "🎮 Iniciando geração do Guild Card para: $GITHUB_USERNAME"
           
@@ -63,6 +69,11 @@ jobs:
           
           # Calcular total de stars
           TOTAL_STARS=$(echo "$REPOS_RESPONSE" | jq '[.[].stargazers_count] | add // 0')
+          
+          # Buscar eventos para atividades (últimos 30 dias)
+          echo "📊 Buscando atividades..."
+          EVENTS_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/users/$GITHUB_USERNAME/events?per_page=100")
           
           # Calcular XP baseado em várias métricas
           XP_REPOS=$((PUBLIC_REPOS * 50))
@@ -138,11 +149,6 @@ jobs:
           PROJ3_DESC=$(echo "$PROJECT_3" | cut -d'|' -f2)
           PROJ3_STARS=$(echo "$PROJECT_3" | cut -d'|' -f3)
           
-          # Limitar comprimento das descrições
-          PROJ1_DESC="${PROJ1_DESC:0:30}"
-          PROJ2_DESC="${PROJ2_DESC:0:30}"
-          PROJ3_DESC="${PROJ3_DESC:0:30}"
-          
           # Calcular porcentagem XP
           if [ $TOTAL_XP -lt 1000 ]; then
             XP_PERCENT=$(( (TOTAL_XP % 100) * 100 / 100 ))
@@ -197,7 +203,7 @@ jobs:
   
   <!-- Header -->
   <rect width="100%" height="80" fill="rgba(0,0,0,0.3)" rx="15 15 0 0"/>
-  <text x="50%" y="45" text-anchor="middle" class="title">🛡️ Guild Kai RPG</text>
+  <text x="50%" y="45" text-anchor="middle" class="title">🛡️ Guild Card RPG</text>
   <text x="50%" y="70" text-anchor="middle" class="subtitle">$USER_CLASS</text>
   
   <!-- Avatar -->
@@ -236,25 +242,31 @@ jobs:
   <text x="30" y="230" class="subtitle">⭐ Projetos Destacados:</text>
   <g transform="translate(30, 245)">
     <text x="0" y="0" class="text">• $PROJ1_NAME ⭐$PROJ1_STARS</text>
-    <text x="0" y="20" class="stat">  $PROJ1_DESC</text>
+    <text x="0" y="20" class="stat">  ${PROJ1_DESC:0:30}</text>
     
     <text x="0" y="50" class="text">• $PROJ2_NAME ⭐$PROJ2_STARS</text>
-    <text x="0" y="70" class="stat">  $PROJ2_DESC</text>
+    <text x="0" y="70" class="stat">  ${PROJ2_DESC:0:30}</text>
     
     <text x="0" y="100" class="text">• $PROJ3_NAME ⭐$PROJ3_STARS</text>
-    <text x="0" y="120" class="stat">  $PROJ3_DESC</text>
+    <text x="0" y="120" class="stat">  ${PROJ3_DESC:0:30}</text>
   </g>
   
   <!-- Footer -->
   <rect width="100%" height="30" y="470" fill="rgba(0,0,0,0.4)" rx="0 0 15 15"/>
   <text x="50%" y="490" text-anchor="middle" class="stat">
-    🛡️ Guild Kai • Gerado em $CURRENT_DATE • github.com/$GITHUB_USERNAME
+    🛡️ Cartão da Guilda • Gerado em $CURRENT_DATE • github.com/$GITHUB_USERNAME
   </text>
 </svg>
 EOF
           
           echo "✅ Cartão SVG gerado com sucesso!"
           echo "📁 Salvo em: guild-cards/$GITHUB_USERNAME.svg"
+          echo "📊 Estatísticas:"
+          echo "   Nível: $LEVEL"
+          echo "   XP Total: $TOTAL_XP"
+          echo "   Repositórios: $PUBLIC_REPOS"
+          echo "   Stars: $TOTAL_STARS"
+          echo "   Seguidores: $FOLLOWERS"
 
       - name: Commit and Push Changes
         run: |
@@ -264,7 +276,7 @@ EOF
           if [ -n "$(git status --porcelain)" ]; then
             echo "🚀 Commitando mudanças..."
             git add guild-cards/
-            git commit -m "🎮 Atualizar Guild Card - $(date +'%d/%m/%Y %H:%M')"
+            git commit -m "🎮 Atualizar Guild Card de ciconha - $(date +'%d/%m/%Y %H:%M')"
             git push
             echo "✅ Mudanças commitadas e enviadas!"
           else
@@ -274,15 +286,31 @@ EOF
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: guild-kai-card
+          name: guild-card-ciconha
           path: guild-cards/
           retention-days: 7
 
       - name: Success Notification
         if: success()
         run: |
-          echo "🎉 Guild Kai Card gerado com sucesso!"
+          echo "🎉 Guild Card gerado com sucesso!"
           echo "👤 Usuário: ciconha"
-          echo "🛡️ Classe: $USER_CLASS"
-          echo "🏢 Empresa: $USER_COMPANY"
-          echo "💼 Área: $USER_AREA"
+          echo "🎨 Estilo: medieval"
+          echo "📐 Tamanho: medium"
+          echo "🛡️ Classe: 🚀 Lenda Fullstack"
+          echo "📊 Estatísticas: basic"
+          echo "🌐 Idioma: pt"
+
+  deploy-to-pages:
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    needs: generate-guild-card
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
