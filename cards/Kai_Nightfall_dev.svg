@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="300" viewBox="0 0 500 300">
+<defs>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400&display=swap');
+    
+    .name { font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 600; fill: #1a1a1a; }
+    .title { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500; fill: #666666; }
+    .label { font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 400; fill: #888888; letter-spacing: 0.5px; text-transform: uppercase; }
+    .value { font-family: 'JetBrains Mono', monospace; font-size: 11px; fill: #333333; }
+    .bio { font-family: 'Inter', sans-serif; font-size: 12px; fill: #444444; line-height: 1.4; }
+    .project-name { font-family: 'JetBrains Mono', monospace; font-size: 10px; fill: #1a1a1a; }
+    .project-stats { font-family: 'Inter', sans-serif; font-size: 9px; fill: #666666; }
+  </style>
+  
+  <!-- Gradiente sutil -->
+  <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#ffffff"/>
+    <stop offset="100%" stop-color="#f8f9fa"/>
+  </linearGradient>
+  
+  <linearGradient id="expBar" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#2563eb"/>
+    <stop offset="100%" stop-color="#3b82f6"/>
+  </linearGradient>
+</defs>
+
+<!-- Fundo clean -->
+<rect width="500" height="300" fill="url(#bgGradient)"/>
+<rect x="20" y="20" width="460" height="260" rx="12" fill="white" stroke="#e5e7eb" stroke-width="1"/>
+
+<!-- Avatar -->
+<defs>
+  <clipPath id="avatarClip">
+    <circle cx="70" cy="70" r="30"/>
+  </clipPath>
+</defs>
+
+<circle cx="70" cy="70" r="32" fill="#f3f4f6"/>
+<circle cx="70" cy="70" r="30" fill="#f8fafc"/>
+<image href="https://avatars.githubusercontent.com/u/231272354&size=150" x="40" y="40" width="60" height="60" clip-path="url(#avatarClip)"/>
+
+<!-- Nome e título -->
+<text x="120" y="55" class="name">Kai Nightfall</text>
+<text x="120" y="75" class="title">Desenvolvedor • INSS</text>
+
+<!-- Bio -->
+<text x="120" y="95" class="label">SOBRE</text>
+<text x="120" y="110" class="bio" width="200">einfach leben</text>
+
+<!-- Stats do GitHub -->
+<g transform="translate(120, 130)">
+  <rect x="0" y="0" width="100" height="30" rx="6" fill="#f8fafc"/>
+  <text x="10" y="12" class="label">Repos</text>
+  <text x="10" y="24" class="value" font-weight="600">2</text>
+  
+  <rect x="110" y="0" width="100" height="30" rx="6" fill="#f8fafc"/>
+  <text x="120" y="12" class="label">Followers</text>
+  <text x="120" y="24" class="value" font-weight="600">0</text>
+  
+  <rect x="220" y="0" width="100" height="30" rx="6" fill="#f8fafc"/>
+  <text x="230" y="12" class="label">Exp</text>
+  <text x="230" y="24" class="value" font-weight="600">2y</text>
+</g>
+
+<!-- Tech Stack -->
+<g transform="translate(20, 170)">
+  <text x="0" y="0" class="label">TECH STACK</text>
+  
+  <g transform="translate(0, 15)">
+    <rect x="0" y="0" width="140" height="25" rx="4" fill="#eff6ff"/>
+    <text x="10" y="16" class="value">JavaScript</text>
+    
+    <rect x="150" y="0" width="140" height="25" rx="4" fill="#f0f9ff"/>
+    <text x="160" y="16" class="value">React</text>
+    
+    <rect x="300" y="0" width="140" height="25" rx="4" fill="#f0fdf4"/>
+    <text x="310" y="16" class="value">PostgreSQL</text>
+  </g>
+</g>
+
+<!-- Barra de experiência -->
+<g transform="translate(20, 220)">
+  <text x="0" y="0" class="label">AVAILABILITY</text>
+  <rect x="0" y="10" width="320" height="8" rx="4" fill="#e5e7eb"/>
+  <rect x="0" y="10" width="256" height="8" rx="4" fill="url(#expBar)"/>
+  <text x="330" y="15" class="value">80%</text>
+</g>
+
+<!-- Projetos Top -->
+<g transform="translate(20, 245)">
+  <text x="0" y="0" class="label">TOP PROJECTS</text>
+  
+  <g transform="translate(0, 15)">
+    <!-- Projeto 1 -->
+    <rect x="0" y="0" width="140" height="40" rx="6" fill="#f8fafc"/>
+    <text x="10" y="15" class="project-name">CICONHA2</text>
+    <text x="10" y="28" class="project-stats">⭐ 0 • N/A</text>
+    
+    <!-- Projeto 2 -->
+    <rect x="150" y="0" width="140" height="40" rx="6" fill="#f8fafc"/>
+    <text x="160" y="15" class="project-name">Tsukuyomimiler</text>
+    <text x="160" y="28" class="project-stats">⭐ 0 • N/A</text>
+    
+    <!-- Projeto 3 -->
+    <rect x="300" y="0" width="140" height="40" rx="6" fill="#f8fafc"/>
+    <text x="310" y="15" class="project-name">No projects</text>
+    <text x="310" y="28" class="project-stats">⭐ 0 • N/A</text>
+  </g>
+</g>
+
+<!-- Footer -->
+<g transform="translate(20, 290)">
+  <text x="0" y="0" class="label">📍 Brasil</text>
+  <text x="350" y="0" class="label" text-anchor="end">Updated: 27/12/2025</text>
+</g>
+
+<!-- Linhas decorativas minimalistas -->
+<line x1="20" y1="165" x2="480" y2="165" stroke="#e5e7eb" stroke-width="1"/>
+<line x1="20" y1="215" x2="480" y2="215" stroke="#e5e7eb" stroke-width="1"/>
+<line x1="20" y1="240" x2="480" y2="240" stroke="#e5e7eb" stroke-width="1"/>
+
+</svg>
