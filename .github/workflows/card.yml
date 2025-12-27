@@ -1,6 +1,6 @@
-- name: Generate Guild Card SVG
+name: Guild Card - ciconha
 
-  on:
+on:
   schedule:
     - cron: '0 0 * * 0'
   workflow_dispatch:
@@ -9,10 +9,10 @@
     paths:
       - '.github/workflows/guild.yml'
 
-  permissions:
+permissions:
   contents: write
 
-  jobs:
+jobs:
   generate-guild-card:
     runs-on: ubuntu-latest
     name: Generate RPG Guild Card
@@ -33,134 +33,145 @@
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Generate Guild Card SVG
-  env:
-    GITHUB_USERNAME: "ciconha"
-    CARD_STYLE: "medieval"
-    CARD_SIZE: "medium"
-    CARD_LAYOUT: "banner"
-    USER_CLASS: "🚀 Lenda Fullstack"
-    USER_AREA: "fullstack"
-    USER_AGE: "20"
-    USER_COMPANY: "INSS"
-    INCLUDE_STATS: "basic"
-    LANGUAGE: "pt"
-  run: |
-    echo "🎮 Iniciando geração do Guild Card para: $GITHUB_USERNAME"
-    
-    # Criar diretório para os cartões
-    mkdir -p guild-cards
-    
-    # Buscar dados do GitHub
-    echo "📡 Buscando dados do GitHub..."
-    USER_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-      "https://api.github.com/users/$GITHUB_USERNAME")
-    
-    # Extrair dados do usuário
-    AVATAR_URL=$(echo "$USER_RESPONSE" | jq -r '.avatar_url // empty')
-    PUBLIC_REPOS=$(echo "$USER_RESPONSE" | jq -r '.public_repos // 0')
-    FOLLOWERS=$(echo "$USER_RESPONSE" | jq -r '.followers // 0')
-    FOLLOWING=$(echo "$USER_RESPONSE" | jq -r '.following // 0')
-    CREATED_AT=$(echo "$USER_RESPONSE" | jq -r '.created_at // empty')
-    
-    # Buscar repositórios
-    echo "📚 Buscando repositórios..."
-    REPOS_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-      "https://api.github.com/users/$GITHUB_USERNAME/repos?sort=updated&per_page=100")
-    
-    # Calcular total de stars
-    TOTAL_STARS=$(echo "$REPOS_RESPONSE" | jq '[.[].stargazers_count] | add // 0')
-    
-    # Buscar eventos para atividades (últimos 30 dias)
-    echo "📊 Buscando atividades..."
-    EVENTS_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-      "https://api.github.com/users/$GITHUB_USERNAME/events?per_page=100")
-    
-    # Calcular XP baseado em várias métricas
-    XP_REPOS=$((PUBLIC_REPOS * 50))
-    XP_FOLLOWERS=$((FOLLOWERS * 30))
-    XP_STARS=$((TOTAL_STARS * 5))
-    TOTAL_XP=$((XP_REPOS + XP_FOLLOWERS + XP_STARS))
-    
-    # Calcular nível
-    LEVEL=1
-    XP_NEXT=100
-    if [ $TOTAL_XP -lt 1000 ]; then
-      LEVEL=$((TOTAL_XP / 100 + 1))
-      XP_NEXT=$((100 - (TOTAL_XP % 100)))
-    elif [ $TOTAL_XP -lt 5000 ]; then
-      LEVEL=$((10 + (TOTAL_XP - 1000) / 250))
-      XP_NEXT=$((250 - ((TOTAL_XP - 1000) % 250)))
-    else
-      LEVEL=$((26 + (TOTAL_XP - 5000) / 500))
-      XP_NEXT=$((500 - ((TOTAL_XP - 5000) % 500)))
-    fi
-    
-    # Determinar rank baseado no nível
-    if [ $LEVEL -lt 5 ]; then
-      RANK="🥉 Novato"
-    elif [ $LEVEL -lt 15 ]; then
-      RANK="🥈 Aventureiro"
-    elif [ $LEVEL -lt 25 ]; then
-      RANK="🥇 Herói"
-    elif [ $LEVEL -lt 35 ]; then
-      RANK="💎 Mestre"
-    else
-      RANK="🔥 Lendário"
-    fi
-    
-    # Calcular idade da conta em anos
-    if [ -n "$CREATED_AT" ]; then
-      ACCOUNT_CREATED=$(date -d "$CREATED_AT" +%s)
-      NOW=$(date +%s)
-      ACCOUNT_AGE_YEARS=$(( (NOW - ACCOUNT_CREATED) / 31536000 ))
-    else
-      ACCOUNT_AGE_YEARS=1
-    fi
-    
-    # Buscar top 3 projetos com mais stars
-    TOP_PROJECTS=$(echo "$REPOS_RESPONSE" | jq -r '
-      [.[] | select(.fork == false)] | 
-      sort_by(-(.stargazers_count // 0)) | 
-      .[0:3] | 
-      .[] | 
-      "\(.name)|\(.description // "Sem descrição")|\(.stargazers_count // 0)|\(.language // "Unknown")"')
-    
-    # Extrair projetos individuais
-    PROJECT_1=$(echo "$TOP_PROJECTS" | sed -n '1p')
-    PROJECT_2=$(echo "$TOP_PROJECTS" | sed -n '2p')
-    PROJECT_3=$(echo "$TOP_PROJECTS" | sed -n '3p')
-    
-    # Extrair dados dos projetos
-    PROJ1_NAME=$(echo "$PROJECT_1" | cut -d'|' -f1)
-    PROJ1_DESC=$(echo "$PROJECT_1" | cut -d'|' -f2)
-    PROJ1_STARS=$(echo "$PROJECT_1" | cut -d'|' -f3)
-    
-    PROJ2_NAME=$(echo "$PROJECT_2" | cut -d'|' -f1)
-    PROJ2_DESC=$(echo "$PROJECT_2" | cut -d'|' -f2)
-    PROJ2_STARS=$(echo "$PROJECT_2" | cut -d'|' -f3)
-    
-    PROJ3_NAME=$(echo "$PROJECT_3" | cut -d'|' -f1)
-    PROJ3_DESC=$(echo "$PROJECT_3" | cut -d'|' -f2)
-    PROJ3_STARS=$(echo "$PROJECT_3" | cut -d'|' -f3)
-    
-    # Calcular porcentagem XP
-    if [ $TOTAL_XP -lt 1000 ]; then
-      XP_PERCENT=$(( (TOTAL_XP % 100) * 100 / 100 ))
-    elif [ $TOTAL_XP -lt 5000 ]; then
-      XP_PERCENT=$(( ((TOTAL_XP - 1000) % 250) * 100 / 250 ))
-    else
-      XP_PERCENT=$(( ((TOTAL_XP - 5000) % 500) * 100 / 500 ))
-    fi
-    
-    XP_BAR_WIDTH=$((260 * XP_PERCENT / 100))
-    
-    echo "🎨 Gerando cartão SVG..."
-    
-    # Data atual
-    CURRENT_DATE=$(date +'%d/%m/%Y')
-    
-    # Gerar SVG completo usando variáveis
-    cat > "guild-cards/${GITHUB_USERNAME}.svg" << EOF
+        env:
+          GITHUB_USERNAME: "ciconha"
+          CARD_STYLE: "medieval"
+          CARD_SIZE: "medium"
+          CARD_LAYOUT: "banner"
+          USER_CLASS: "🚀 Lenda Fullstack"
+          USER_AREA: "fullstack"
+          USER_AGE: "20"
+          USER_COMPANY: "INSS"
+          INCLUDE_STATS: "basic"
+          LANGUAGE: "pt"
+        run: |
+          echo "🎮 Iniciando geração do Guild Card para: $GITHUB_USERNAME"
+          
+          # Criar diretório para os cartões
+          mkdir -p guild-cards
+          
+          # Buscar dados do GitHub
+          echo "📡 Buscando dados do GitHub..."
+          USER_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/users/$GITHUB_USERNAME")
+          
+          # Extrair dados do usuário
+          AVATAR_URL=$(echo "$USER_RESPONSE" | jq -r '.avatar_url // empty')
+          PUBLIC_REPOS=$(echo "$USER_RESPONSE" | jq -r '.public_repos // 0')
+          FOLLOWERS=$(echo "$USER_RESPONSE" | jq -r '.followers // 0')
+          FOLLOWING=$(echo "$USER_RESPONSE" | jq -r '.following // 0')
+          CREATED_AT=$(echo "$USER_RESPONSE" | jq -r '.created_at // empty')
+          
+          # Buscar repositórios
+          echo "📚 Buscando repositórios..."
+          REPOS_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/users/$GITHUB_USERNAME/repos?sort=updated&per_page=100")
+          
+          # Calcular total de stars
+          TOTAL_STARS=$(echo "$REPOS_RESPONSE" | jq '[.[].stargazers_count] | add // 0')
+          
+          # Buscar eventos para atividades (últimos 30 dias)
+          echo "📊 Buscando atividades..."
+          EVENTS_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/users/$GITHUB_USERNAME/events?per_page=100")
+          
+          # Calcular XP baseado em várias métricas
+          XP_REPOS=$((PUBLIC_REPOS * 50))
+          XP_FOLLOWERS=$((FOLLOWERS * 30))
+          XP_STARS=$((TOTAL_STARS * 5))
+          TOTAL_XP=$((XP_REPOS + XP_FOLLOWERS + XP_STARS))
+          
+          # Calcular nível
+          LEVEL=1
+          XP_NEXT=100
+          if [ $TOTAL_XP -lt 1000 ]; then
+            LEVEL=$((TOTAL_XP / 100 + 1))
+            XP_NEXT=$((100 - (TOTAL_XP % 100)))
+          elif [ $TOTAL_XP -lt 5000 ]; then
+            LEVEL=$((10 + (TOTAL_XP - 1000) / 250))
+            XP_NEXT=$((250 - ((TOTAL_XP - 1000) % 250)))
+          else
+            LEVEL=$((26 + (TOTAL_XP - 5000) / 500))
+            XP_NEXT=$((500 - ((TOTAL_XP - 5000) % 500)))
+          fi
+          
+          # Determinar rank baseado no nível
+          if [ $LEVEL -lt 5 ]; then
+            RANK="🥉 Novato"
+          elif [ $LEVEL -lt 15 ]; then
+            RANK="🥈 Aventureiro"
+          elif [ $LEVEL -lt 25 ]; then
+            RANK="🥇 Herói"
+          elif [ $LEVEL -lt 35 ]; then
+            RANK="💎 Mestre"
+          else
+            RANK="🔥 Lendário"
+          fi
+          
+          # Calcular idade da conta em anos
+          if [ -n "$CREATED_AT" ]; then
+            ACCOUNT_CREATED=$(date -d "$CREATED_AT" +%s)
+            NOW=$(date +%s)
+            ACCOUNT_AGE_YEARS=$(( (NOW - ACCOUNT_CREATED) / 31536000 ))
+          else
+            ACCOUNT_AGE_YEARS=1
+          fi
+          
+          # Buscar top 3 projetos com mais stars
+          TOP_PROJECTS=$(echo "$REPOS_RESPONSE" | jq -r '
+            [.[] | select(.fork == false)] | 
+            sort_by(-(.stargazers_count // 0)) | 
+            .[0:3] | 
+            .[] | 
+            "\(.name)|\(.description // "Sem descrição")|\(.stargazers_count // 0)|\(.language // "Unknown")"')
+          
+          # Extrair projetos individuais
+          if [ -n "$TOP_PROJECTS" ]; then
+            PROJECT_1=$(echo "$TOP_PROJECTS" | sed -n '1p')
+            PROJECT_2=$(echo "$TOP_PROJECTS" | sed -n '2p')
+            PROJECT_3=$(echo "$TOP_PROJECTS" | sed -n '3p')
+          else
+            PROJECT_1="Nenhum projeto|Sem descrição|0"
+            PROJECT_2="Nenhum projeto|Sem descrição|0"
+            PROJECT_3="Nenhum projeto|Sem descrição|0"
+          fi
+          
+          # Extrair dados dos projetos
+          PROJ1_NAME=$(echo "$PROJECT_1" | cut -d'|' -f1)
+          PROJ1_DESC=$(echo "$PROJECT_1" | cut -d'|' -f2)
+          PROJ1_STARS=$(echo "$PROJECT_1" | cut -d'|' -f3)
+          
+          PROJ2_NAME=$(echo "$PROJECT_2" | cut -d'|' -f1)
+          PROJ2_DESC=$(echo "$PROJECT_2" | cut -d'|' -f2)
+          PROJ2_STARS=$(echo "$PROJECT_2" | cut -d'|' -f3)
+          
+          PROJ3_NAME=$(echo "$PROJECT_3" | cut -d'|' -f1)
+          PROJ3_DESC=$(echo "$PROJECT_3" | cut -d'|' -f2)
+          PROJ3_STARS=$(echo "$PROJECT_3" | cut -d'|' -f3)
+          
+          # Calcular porcentagem XP
+          if [ $TOTAL_XP -lt 1000 ]; then
+            XP_PERCENT=$(( (TOTAL_XP % 100) * 100 / 100 ))
+          elif [ $TOTAL_XP -lt 5000 ]; then
+            XP_PERCENT=$(( ((TOTAL_XP - 1000) % 250) * 100 / 250 ))
+          else
+            XP_PERCENT=$(( ((TOTAL_XP - 5000) % 500) * 100 / 500 ))
+          fi
+          
+          # Garantir que XP_PERCENT não seja negativo
+          if [ $XP_PERCENT -lt 0 ]; then
+            XP_PERCENT=0
+          fi
+          
+          XP_BAR_WIDTH=$((260 * XP_PERCENT / 100))
+          
+          echo "🎨 Gerando cartão SVG..."
+          
+          # Data atual
+          CURRENT_DATE=$(date +'%d/%m/%Y')
+          
+          # Gerar SVG completo usando variáveis
+          cat > "guild-cards/${GITHUB_USERNAME}.svg" << EOF
 <svg xmlns="http://www.w3.org/2000/svg" width="400" height="500" viewBox="0 0 400 500">
   <defs>
     <style>
@@ -247,6 +258,59 @@
   </text>
 </svg>
 EOF
-    
-    echo "✅ Cartão SVG gerado com sucesso!"
-    echo "📁 Salvo em: guild-cards/$GITHUB_USERNAME.svg"
+          
+          echo "✅ Cartão SVG gerado com sucesso!"
+          echo "📁 Salvo em: guild-cards/$GITHUB_USERNAME.svg"
+          echo "📊 Estatísticas:"
+          echo "   Nível: $LEVEL"
+          echo "   XP Total: $TOTAL_XP"
+          echo "   Repositórios: $PUBLIC_REPOS"
+          echo "   Stars: $TOTAL_STARS"
+          echo "   Seguidores: $FOLLOWERS"
+
+      - name: Commit and Push Changes
+        run: |
+          echo "📦 Verificando mudanças..."
+          git status
+          
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "🚀 Commitando mudanças..."
+            git add guild-cards/
+            git commit -m "🎮 Atualizar Guild Card de ciconha - $(date +'%d/%m/%Y %H:%M')"
+            git push
+            echo "✅ Mudanças commitadas e enviadas!"
+          else
+            echo "📝 Nenhuma mudança para commitar"
+          fi
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: guild-card-ciconha
+          path: guild-cards/
+          retention-days: 7
+
+      - name: Success Notification
+        if: success()
+        run: |
+          echo "🎉 Guild Card gerado com sucesso!"
+          echo "👤 Usuário: ciconha"
+          echo "🎨 Estilo: medieval"
+          echo "📐 Tamanho: medium"
+          echo "🛡️ Classe: 🚀 Lenda Fullstack"
+          echo "📊 Estatísticas: basic"
+          echo "🌐 Idioma: pt"
+
+  deploy-to-pages:
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    needs: generate-guild-card
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
