@@ -1,205 +1,311 @@
-name: Recreate Character Card
+name: Recreate Guild Card (Node)
 
 on:
   workflow_dispatch:
 
 jobs:
-  recreate-card:
+  generate-guild-card:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Install system deps for node-canvas
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          python-version: '3.11'
+          node-version: '18'
 
-      - name: Install dependencies
+      - name: Create example character.yml if missing
         run: |
-          python -m pip install --upgrade pip
-          pip install pillow requests
+          if [ ! -f character.yml ]; then
+            cat > character.yml <<'YML'
+name: "H/N"
+class: "Superhero"
+guild: "14Ball Official"
+gender: "M"
+age: 17
+race: "Human"
+inv: "Being from another dimension, H/N doesn’t have any powers. Though, being a very good fighter mixed with having knowledge of most everything makes him a formidable adversary."
+lvl: 2
+stats:
+  STRENGTH: 7
+  HEALTH: 8
+  MAGIC_POW: 0
+  DEXTERITY: 9
+  AGILITY: 6
+  LUK: 9
+active_skills:
+  - "Determination"
+  - "Spinjitzu"
+superhero_ranking: "D"
+YML
+            echo "Created example character.yml"
+          else
+            echo "character.yml already exists"
+          fi
 
-      - name: Download font
+      - name: Install npm packages
         run: |
-          mkdir -p fonts
-          curl -L -o fonts/EbGaramond-Regular.ttf https://github.com/google/fonts/raw/main/ofl/ebgaramond/EbGaramond-Regular.ttf
+          npm init -y
+          npm install canvas@2 yamljs
 
-      - name: Generate image with Pillow
+      - name: Add Node script to generate card
         run: |
-          cat > generate_card.py <<'PY'
-from PIL import Image, ImageDraw, ImageFont
+          cat > generate_card.js <<'JS'
+/**
+ * Simple Node.js script that reads character.yml and draws a guild card PNG
+ * using node-canvas. Output: recreated_card.png (transparent background).
+ *
+ * This script is intentionally straightforward and focuses on layout, text,
+ * and simple shapes to replicate the card structure.
+ */
+const fs = require('fs');
+const YAML = require('yamljs');
+const { createCanvas, loadImage, registerFont } = require('canvas');
 
-# Canvas settings
-W, H = 1600, 1000
-bg_color = (0, 0, 0, 0)  # transparent background
-card_margin = 60
-card_w = W - card_margin*2
-card_h = H - card_margin*2
-card_x = card_margin
-card_y = card_margin
+// Optional: register a font if you add one to the repo (uncomment if available)
+// registerFont('fonts/EbGaramond-Regular.ttf', { family: 'EbGaramond' });
 
-# Colors
-paper = (245, 235, 210, 255)
-border = (60, 40, 20, 255)
-accent = (120, 80, 40, 255)
-text_color = (30, 20, 10, 255)
-icon_color = (80, 50, 30, 255)
+const data = YAML.load('character.yml');
 
-# Create image with transparency
-img = Image.new("RGBA", (W, H), bg_color)
-draw = ImageDraw.Draw(img)
+// Canvas size
+const W = 1600;
+const H = 1000;
+const canvas = createCanvas(W, H);
+const ctx = canvas.getContext('2d');
 
-# Load font (fallback to default if not found)
-try:
-    title_font = ImageFont.truetype("fonts/EbGaramond-Regular.ttf", 48)
-    header_font = ImageFont.truetype("fonts/EbGaramond-Regular.ttf", 36)
-    body_font = ImageFont.truetype("fonts/EbGaramond-Regular.ttf", 28)
-    mono_font = ImageFont.truetype("fonts/EbGaramond-Regular.ttf", 24)
-except Exception:
-    title_font = ImageFont.load_default()
-    header_font = ImageFont.load_default()
-    body_font = ImageFont.load_default()
-    mono_font = ImageFont.load_default()
+// Colors
+const transparent = 'rgba(0,0,0,0)';
+const paper = '#F5EBD2';
+const border = '#3C2814';
+const accent = '#785028';
+const textColor = '#1E140A';
+const iconColor = '#50321E';
 
-# Draw parchment-like card rectangle with border
-draw.rounded_rectangle([card_x, card_y, card_x+card_w, card_y+card_h], radius=24, fill=paper, outline=border, width=6)
+// Fill transparent background
+ctx.clearRect(0, 0, W, H);
 
-# Decorative inner border
-inner_pad = 28
-draw.rounded_rectangle([card_x+inner_pad, card_y+inner_pad, card_x+card_w-inner_pad, card_y+card_h-inner_pad], radius=18, outline=accent, width=3)
+// Card rectangle (parchment)
+const margin = 60;
+const cardX = margin;
+const cardY = margin;
+const cardW = W - margin*2;
+const cardH = H - margin*2;
+const radius = 24;
 
-# Top-left labels
-labels_x = card_x + 60
-labels_y = card_y + 60
-label_w = 420
-label_h = 64
-gap = 12
+// rounded rectangle function
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
 
-def draw_label(x, y, w, h, label, value):
-    draw.rectangle([x, y, x+w, y+h], outline=border, width=3, fill=(255,255,255,0))
-    draw.text((x+12, y+8), f"{label}: {value}", font=header_font, fill=text_color)
+// draw card
+ctx.fillStyle = paper;
+roundRect(cardX, cardY, cardW, cardH, radius);
+ctx.fill();
+ctx.lineWidth = 6;
+ctx.strokeStyle = border;
+ctx.stroke();
 
-draw_label(labels_x, labels_y, label_w, label_h, "NAME", "H/N")
-draw_label(labels_x, labels_y + (label_h+gap), label_w, label_h, "CLASS", "Superhero")
-draw_label(labels_x, labels_y + 2*(label_h+gap), label_w, label_h, "GUILD", "14Ball Official")
+// inner border
+ctx.lineWidth = 3;
+ctx.strokeStyle = accent;
+roundRect(cardX + 28, cardY + 28, cardW - 56, cardH - 56, 18);
+ctx.stroke();
 
-# Top-right silhouette box
-sil_x = card_x + card_w - 320
-sil_y = card_y + 60
-sil_w = 220
-sil_h = 220
-draw.rectangle([sil_x, sil_y, sil_x+sil_w, sil_y+sil_h], outline=border, width=3)
-# simple silhouette
-cx = sil_x + sil_w//2
-cy = sil_y + sil_h//2 - 10
-draw.ellipse([cx-40, cy-70, cx+40, cy-10], fill=icon_color)  # head
-draw.rectangle([cx-60, cy-10, cx+60, cy+80], fill=icon_color)  # torso
+// fonts (use system fallback)
+const headerFont = '36px serif';
+const titleFont = '48px serif';
+const bodyFont = '28px serif';
+const monoFont = '22px monospace';
 
-# Basic info row under silhouette
-info_x = sil_x
-info_y = sil_y + sil_h + 12
-draw.text((info_x, info_y), "AGE: 17   RACE: Human   GENDER: M", font=body_font, fill=text_color)
+// Top-left labels
+const labelsX = cardX + 60;
+let labelsY = cardY + 60;
+const labelW = 420;
+const labelH = 64;
+const gap = 12;
 
-# Inventory paragraph
-inv_x = labels_x
-inv_y = labels_y + 3*(label_h+gap) + 20
-inv_w = card_w - 2*60 - sil_w - 40
-inv_text = ("INV: Being from another dimension, H/N doesn’t have any powers. "
-            "Though, being a very good fighter mixed with having knowledge of most everything "
-            "makes him a formidable adversary.")
-# wrap text
-def draw_text_box(x, y, w, text, font, fill):
-    words = text.split()
-    line = ""
-    line_h = font.getsize("A")[1] + 6
-    cur_y = y
-    for word in words:
-        test = line + (" " if line else "") + word
-        if font.getsize(test)[0] <= w:
-            line = test
-        else:
-            draw.text((x, cur_y), line, font=font, fill=fill)
-            cur_y += line_h
-            line = word
-    if line:
-        draw.text((x, cur_y), line, font=font, fill=fill)
-    return cur_y + line_h
+function drawLabel(x, y, w, h, label, value) {
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = border;
+  ctx.strokeRect(x, y, w, h);
+  ctx.fillStyle = textColor;
+  ctx.font = headerFont;
+  ctx.fillText(`${label}: ${value}`, x + 12, y + 42);
+}
 
-inv_end_y = draw_text_box(inv_x, inv_y, inv_w, inv_text, body_font, text_color)
+drawLabel(labelsX, labelsY, labelW, labelH, 'NAME', data.name || 'H/N');
+labelsY += labelH + gap;
+drawLabel(labelsX, labelsY, labelW, labelH, 'CLASS', data.class || 'Superhero');
+labelsY += labelH + gap;
+drawLabel(labelsX, labelsY, labelW, labelH, 'GUILD', data.guild || '14Ball Official');
 
-# Stats column
-stats_x = labels_x
-stats_y = inv_end_y + 20
-stats_w = 520
-draw.text((stats_x, stats_y), "STATS // SKILLS", font=header_font, fill=text_color)
-stats = [
-    ("STRENGTH", "7"),
-    ("HEALTH", "8"),
-    ("MAGIC POW", "0"),
-    ("DEXTERITY", "9"),
-    ("AGILITY", "6"),
-    ("LUK", "9"),
-]
-line_y = stats_y + 48
-for name, val in stats:
-    draw.line([stats_x, line_y+18, stats_x+stats_w-20, line_y+18], fill=accent, width=1)
-    draw.text((stats_x+6, line_y), f"{name}", font=body_font, fill=text_color)
-    draw.text((stats_x+stats_w-60, line_y), f"{val}", font=body_font, fill=text_color)
-    line_y += 44
+// Top-right silhouette box
+const silX = cardX + cardW - 320;
+const silY = cardY + 60;
+const silW = 220;
+const silH = 220;
+ctx.lineWidth = 3;
+ctx.strokeStyle = border;
+ctx.strokeRect(silX, silY, silW, silH);
 
-# Active skills column
-skills_x = stats_x + stats_w + 40
-skills_y = stats_y
-skills_w = 360
-draw.text((skills_x, skills_y), "ACTIVE SKILLS", font=header_font, fill=text_color)
-draw.line([skills_x, skills_y+48, skills_x+skills_w, skills_y+48], fill=accent, width=1)
-draw.text((skills_x+6, skills_y+64), "• Determination", font=body_font, fill=text_color)
-draw.text((skills_x+6, skills_y+64+40), "• Spinjitzu", font=body_font, fill=text_color)
+// silhouette (simple)
+ctx.fillStyle = iconColor;
+const cx = silX + silW/2;
+const cy = silY + silH/2 - 10;
+ctx.beginPath();
+ctx.ellipse(cx, cy - 30, 40, 40, 0, 0, Math.PI*2);
+ctx.fill();
+ctx.fillRect(cx - 60, cy - 10, 120, 90);
 
-# LVL box
-lvl_x = skills_x + skills_w + 20
-lvl_y = skills_y + 20
-draw.rectangle([lvl_x, lvl_y, lvl_x+120, lvl_y+120], outline=border, width=3)
-draw.text((lvl_x+18, lvl_y+28), "LVL", font=header_font, fill=text_color)
-draw.text((lvl_x+46, lvl_y+64), "2", font=title_font, fill=text_color)
+// basic info row under silhouette
+ctx.fillStyle = textColor;
+ctx.font = bodyFont;
+ctx.fillText(`AGE: ${data.age || 17}   RACE: ${data.race || 'Human'}   GENDER: ${data.gender || 'M'}`, silX, silY + silH + 36);
 
-# Superhero ranking column with simple icons
-rank_x = lvl_x + 160
-rank_y = skills_y
-rank_w = 160
-draw.text((rank_x, rank_y), "SUPERHERO RANKING", font=body_font, fill=text_color)
-# draw a vertical column of simple geometric icons
-icon_start_y = rank_y + 48
-icon_gap = 36
-# diamond
-draw.polygon([(rank_x+rank_w//2, icon_start_y),
-              (rank_x+rank_w-8, icon_start_y+18),
-              (rank_x+rank_w//2, icon_start_y+36),
-              (rank_x+8, icon_start_y+18)], outline=icon_color, fill=None)
-icon_start_y += icon_gap
-# four small squares with symbols (represented as simple shapes)
-for i in range(4):
-    sx = rank_x + 12 + (i%2)*56
-    sy = icon_start_y + (i//2)*56
-    draw.rectangle([sx, sy, sx+40, sy+40], outline=icon_color, width=2)
-# center circle
-draw.ellipse([rank_x+rank_w//2-18, icon_start_y+56-18, rank_x+rank_w//2+18, icon_start_y+56+18], outline=icon_color, width=2)
-# sun-like symbol
-draw.ellipse([rank_x+rank_w//2-22, icon_start_y+140-22, rank_x+rank_w//2+22, icon_start_y+140+22], outline=icon_color, width=2)
-# hourglass
-draw.line([rank_x+rank_w//2-18, icon_start_y+200, rank_x+rank_w//2+18, icon_start_y+200], fill=icon_color, width=2)
-draw.line([rank_x+rank_w//2-18, icon_start_y+200, rank_x+rank_w//2+18, icon_start_y+260], fill=icon_color, width=2)
+// Inventory paragraph
+const invX = labelsX;
+const invY = cardY + 60 + 3*(labelH + gap) + 20;
+const invW = cardW - (labelsX - cardX) - 60 - silW - 20;
+ctx.font = bodyFont;
+const invText = data.inv || '';
+function wrapText(text, x, y, maxWidth, lineHeight) {
+  const words = text.split(' ');
+  let line = '';
+  for (let n = 0; n < words.length; n++) {
+    const testLine = line + (line ? ' ' : '') + words[n];
+    const metrics = ctx.measureText(testLine);
+    if (metrics.width > maxWidth && n > 0) {
+      ctx.fillText(line, x, y);
+      line = words[n];
+      y += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+  if (line) ctx.fillText(line, x, y);
+  return y + lineHeight;
+}
+let curY = wrapText(invText, invX, invY, invW, 36);
 
-# Footer small label
-footer_text = "SUPERHERO RANKING: D"
-draw.text((card_x + 60, card_y + card_h - 60), footer_text, font=mono_font, fill=text_color)
+// Stats column
+const statsX = labelsX;
+const statsY = curY + 20;
+const statsW = 520;
+ctx.font = headerFont;
+ctx.fillText('STATS // SKILLS', statsX, statsY);
+ctx.font = bodyFont;
+let lineY = statsY + 48;
+const stats = data.stats || {};
+const statOrder = ['STRENGTH','HEALTH','MAGIC_POW','DEXTERITY','AGILITY','LUK'];
+for (const key of statOrder) {
+  const val = stats[key] !== undefined ? stats[key] : (key === 'MAGIC_POW' ? 0 : '');
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(statsX, lineY + 18);
+  ctx.lineTo(statsX + statsW - 20, lineY + 18);
+  ctx.stroke();
+  ctx.fillStyle = textColor;
+  ctx.fillText(key.replace('_',' '), statsX + 6, lineY + 28);
+  ctx.fillText(String(val), statsX + statsW - 60, lineY + 28);
+  lineY += 44;
+}
 
-# Save PNG with transparency
-img.save("recreated_card.png", format="PNG")
-print("Saved recreated_card.png")
-PY
-          python generate_card.py
+// Active skills column
+const skillsX = statsX + statsW + 40;
+const skillsY = statsY;
+const skillsW = 360;
+ctx.font = headerFont;
+ctx.fillText('ACTIVE SKILLS', skillsX, skillsY);
+ctx.strokeStyle = accent;
+ctx.lineWidth = 1;
+ctx.beginPath();
+ctx.moveTo(skillsX, skillsY + 48);
+ctx.lineTo(skillsX + skillsW, skillsY + 48);
+ctx.stroke();
+ctx.font = bodyFont;
+const skills = data.active_skills || [];
+let sy = skillsY + 64;
+for (const s of skills) {
+  ctx.fillText('• ' + s, skillsX + 6, sy);
+  sy += 40;
+}
+
+// LVL box
+const lvlX = skillsX + skillsW + 20;
+const lvlY = skillsY + 20;
+ctx.lineWidth = 3;
+ctx.strokeStyle = border;
+ctx.strokeRect(lvlX, lvlY, 120, 120);
+ctx.font = headerFont;
+ctx.fillStyle = textColor;
+ctx.fillText('LVL', lvlX + 18, lvlY + 48);
+ctx.font = titleFont;
+ctx.fillText(String(data.lvl || 2), lvlX + 46, lvlY + 84);
+
+// Superhero ranking column (simple icons)
+const rankX = lvlX + 160;
+const rankY = skillsY;
+ctx.font = bodyFont;
+ctx.fillText('SUPERHERO RANKING', rankX, rankY);
+ctx.strokeStyle = iconColor;
+ctx.lineWidth = 2;
+let iconStartY = rankY + 48;
+const rank = data.superhero_ranking || 'D';
+// diamond
+ctx.beginPath();
+ctx.moveTo(rankX + 80, iconStartY);
+ctx.lineTo(rankX + 152, iconStartY + 18);
+ctx.lineTo(rankX + 80, iconStartY + 36);
+ctx.lineTo(rankX + 8, iconStartY + 18);
+ctx.closePath();
+ctx.stroke();
+iconStartY += 56;
+// four small squares
+for (let i = 0; i < 4; i++) {
+  const sx = rankX + 12 + (i%2)*56;
+  const sy2 = iconStartY + Math.floor(i/2)*56;
+  ctx.strokeRect(sx, sy2, 40, 40);
+}
+iconStartY += 120;
+// center circle
+ctx.beginPath();
+ctx.arc(rankX + 80, iconStartY, 18, 0, Math.PI*2);
+ctx.stroke();
+iconStartY += 72;
+// sun-like
+ctx.beginPath();
+ctx.arc(rankX + 80, iconStartY, 22, 0, Math.PI*2);
+ctx.stroke();
+iconStartY += 72;
+
+// footer
+ctx.font = monoFont;
+ctx.fillStyle = textColor;
+ctx.fillText(`SUPERHERO RANKING: ${rank}`, cardX + 60, cardY + cardH - 40);
+
+// Save PNG
+const out = fs.createWriteStream('recreated_card.png');
+const stream = canvas.createPNGStream();
+stream.pipe(out);
+out.on('finish', () => console.log('Saved recreated_card.png'));
+JS
+
+      - name: Run Node script to generate card
+        run: |
+          node generate_card.js
 
       - name: Upload generated image
         uses: actions/upload-artifact@v4
