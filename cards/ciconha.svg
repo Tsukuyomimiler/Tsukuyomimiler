@@ -1,43 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="460" height="280" viewBox="0 0 460 280">
-  <defs>
-    <linearGradient id="darkRed" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#120000"/>
-      <stop offset="100%" stop-color="#360000"/>
-    </linearGradient>
-    <style>
-      .title { font-size: 22px; font-weight: bold; fill: #FF3333; }
-      .subtitle { font-size: 13px; fill: #FF7777; }
-      .text { font-size: 11px; fill: #FFAAAA; }
-      .bar-bg { fill: #1a0000; }
-      .bar-fill { fill: #FF2222; }
-    </style>
-  </defs>
-
-  <rect width="460" height="280" rx="15" ry="15" fill="url(#darkRed)" stroke="#880000" stroke-width="3"/>
-
-  <!-- Cabeçalho -->
-  <text x="30" y="55" class="title">Eduardo Ciconha</text>
-  <text x="30" y="75" class="subtitle">🏢 Independente • 💼 frontend</text>
-  <text x="30" y="93" class="subtitle">⚔️ Aventureiro • 🩸 Herói</text>
-
-  <!-- Bio -->
-  <text x="30" y="115" class="text">夜幕降临 ブロック7</text>
-
-  <!-- Linguagem + XP -->
-  <text x="30" y="140" class="text">💻 Linguagem principal: CSS</text>
-  <text x="30" y="158" class="text">🏆 Nível: 2 • XP Total: 1884</text>
-
-  <!-- Barra de XP -->
-  <rect x="30" y="165" width="280" height="8" class="bar-bg" rx="4" ry="4"/>
-  <rect x="30" y="165" width="246" height="8" class="bar-fill" rx="4" ry="4"/>
-
-  <!-- Projetos -->
-  <text x="30" y="195" class="subtitle">⭐ Destaques:</text>
-  <text x="30" y="215" class="text">• API-Dijkstra — ⭐ 2</text>
-  <text x="30" y="232" class="text">• Calculator — ⭐ 2</text>
-
-  <!-- Rodapé -->
-  <text x="230" y="265" text-anchor="middle" class="text">
-    Gerado em 01/11/2025 • 77 commits • 0 PRs • 8 issues
-  </text>
+<svg width="400" height="200" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="200" fill="#0f0f23" rx="10"/>
+  <rect x="20" y="20" width="360" height="160" fill="#1a1a2e" rx="10"/>
+  
+  <text x="40" y="60" font-family="Arial" font-size="24" fill="white">ciconha</text>
+  <text x="40" y="90" font-family="Arial" font-size="14" fill="#00b4d8">Genshin Developer</text>
+  
+  <g transform="translate(40, 120)">
+    <rect width="80" height="40" rx="5" fill="#252547"/>
+    <text x="40" y="25" text-anchor="middle" font-family="Arial" font-size="12" fill="#ccc">Level</text>
+    <text x="40" y="45" text-anchor="middle" font-family="Arial" font-size="16" fill="white">42</text>
+    
+    <rect x="100" width="80" height="40" rx="5" fill="#252547"/>
+    <text x="140" y="25" text-anchor="middle" font-family="Arial" font-size="12" fill="#ccc">Rank</text>
+    <text x="140" y="45" text-anchor="middle" font-family="Arial" font-size="16" fill="#FFD700">S</text>
+    
+    <rect x="200" width="80" height="40" rx="5" fill="#252547"/>
+    <text x="240" y="25" text-anchor="middle" font-family="Arial" font-size="12" fill="#ccc">XP</text>
+    <text x="240" y="45" text-anchor="middle" font-family="Arial" font-size="16" fill="white">9999</text>
+  </g>
+  
+  <text x="40" y="180" font-family="Arial" font-size="10" fill="#888">Created: 2025-12-27</text>
 </svg>
