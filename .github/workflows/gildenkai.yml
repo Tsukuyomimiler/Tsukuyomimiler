@@ -1,4 +1,4 @@
-name: 🛡️ Superhero Card Generator
+name: 🦸‍♂️ Superhero Card Generator
 
 on:
   workflow_dispatch:
@@ -88,11 +88,12 @@ jobs:
       - name: ⚙️ Instalar dependências
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y fonts-dejavu
+          sudo apt-get install -y curl jq
 
-      - name: 🎨 Processar dados do card
-        id: process-card
+      - name: 🎨 Gerar Card SVG
         run: |
+          mkdir -p cards
+          
           # Processar inputs
           NAME="${{ github.event.inputs.name }}"
           SLASS="${{ github.event.inputs.slass }}"
@@ -132,13 +133,6 @@ jobs:
           [ $AGI_WIDTH -gt 150 ] && AGI_WIDTH=150
           [ $LUCK_WIDTH -gt 150 ] && LUCK_WIDTH=150
           
-          # Criar arrays de skills
-          SKILLS=()
-          [ -n "$SKILL1" ] && SKILLS+=("$SKILL1")
-          [ -n "$SKILL2" ] && SKILLS+=("$SKILL2")
-          [ -n "$SKILL3" ] && SKILLS+=("$SKILL3")
-          [ -n "$SKILL4" ] && SKILLS+=("$SKILL4")
-          
           # Cor baseada no ranking
           case "$RANKING" in
             "S") RANK_COLOR="#FFD700" ;;  # Ouro
@@ -148,117 +142,23 @@ jobs:
             *) RANK_COLOR="#8B0000" ;;    # Vermelho escuro
           esac
           
-          # Salvar outputs
-          echo "name=$NAME" >> $GITHUB_OUTPUT
-          echo "slass=$SLASS" >> $GITHUB_OUTPUT
-          echo "guild=$GUIDE" >> $GITHUB_OUTPUT
-          echo "gender=$GENDER" >> $GITHUB_OUTPUT
-          echo "backstory=$BACKSTORY" >> $GITHUB_OUTPUT
-          echo "ranking=$RANKING" >> $GITHUB_OUTPUT
-          echo "rank_color=$RANK_COLOR" >> $GITHUB_OUTPUT
-          echo "str_width=$STR_WIDTH" >> $GITHUB_OUTPUT
-          echo "health_width=$HEALTH_WIDTH" >> $GITHUB_OUTPUT
-          echo "magic_width=$MAGIC_WIDTH" >> $GITHUB_OUTPUT
-          echo "dex_width=$DEX_WIDTH" >> $GITHUB_OUTPUT
-          echo "agi_width=$AGI_WIDTH" >> $GITHUB_OUTPUT
-          echo "luck_width=$LUCK_WIDTH" >> $GITHUB_OUTPUT
-          echo "skills=${SKILLS[*]}" >> $GITHUB_OUTPUT
-          
-          echo "✅ Dados processados com sucesso!"
-
-      - name: 🖼️ Gerar Card SVG
-        run: |
-          mkdir -p cards
-          
-          # Variáveis
-          NAME="${{ steps.process-card.outputs.name }}"
-          SLASS="${{ steps.process-card.outputs.slass }}"
-          GUIDE="${{ steps.process-card.outputs.guild }}"
-          GENDER="${{ steps.process-card.outputs.gender }}"
-          BACKSTORY="${{ steps.process-card.outputs.backstory }}"
-          RANKING="${{ steps.process-card.outputs.ranking }}"
-          RANK_COLOR="${{ steps.process-card.outputs.rank_color }}"
-          
-          # Stats widths
-          STR_WIDTH="${{ steps.process-card.outputs.str_width }}"
-          HEALTH_WIDTH="${{ steps.process-card.outputs.health_width }}"
-          MAGIC_WIDTH="${{ steps.process-card.outputs.magic_width }}"
-          DEX_WIDTH="${{ steps.process-card.outputs.dex_width }}"
-          AGI_WIDTH="${{ steps.process-card.outputs.agi_width }}"
-          LUCK_WIDTH="${{ steps.process-card.outputs.luck_width }}"
-          
-          # Skills array
-          IFS=' ' read -r -a SKILLS <<< "${{ steps.process-card.outputs.skills }}"
-          
-          # Stats values
-          STRENGTH="${{ github.event.inputs.strength }}"
-          HEALTH="${{ github.event.inputs.health }}"
-          MAGIC_POW="${{ github.event.inputs.magic_pow }}"
-          DEXTERITY="${{ github.event.inputs.dexterity }}"
-          AGILITY="${{ github.event.inputs.agility }}"
-          LUCK="${{ github.event.inputs.luck }}"
-          
           # Data atual
           CURRENT_DATE=$(date +'%d/%m/%Y')
           
           # Gerar SVG
           SVG_FILE="cards/${NAME//\//_}.svg"  # Substitui / por _
           
-          cat > "$SVG_FILE" << 'EOF'
+          cat > "$SVG_FILE" << EOF
           <svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400">
           <defs>
             <style>
-              @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto+Mono:wght@300;400;700&family=Anton&family=Bebas+Neue&display=swap');
-              
-              .title {
-                font-family: 'Anton', sans-serif;
-                font-size: 42px;
-                font-weight: 900;
-                fill: #000000;
-                letter-spacing: 2px;
-                text-transform: uppercase;
-              }
-              
-              .label {
-                font-family: 'Bebas Neue', cursive;
-                font-size: 24px;
-                fill: #333333;
-                letter-spacing: 1px;
-              }
-              
-              .value {
-                font-family: 'Orbitron', monospace;
-                font-size: 18px;
-                fill: #000000;
-                font-weight: bold;
-              }
-              
-              .section-title {
-                font-family: 'Bebas Neue', cursive;
-                font-size: 28px;
-                fill: #8B0000;
-                letter-spacing: 1.5px;
-              }
-              
-              .body-text {
-                font-family: 'Roboto Mono', monospace;
-                font-size: 12px;
-                fill: #333333;
-              }
-              
-              .skill-text {
-                font-family: 'Orbitron', monospace;
-                font-size: 14px;
-                fill: #000000;
-                font-weight: bold;
-              }
-              
-              .rank-text {
-                font-family: 'Anton', sans-serif;
-                font-size: 36px;
-                fill: ${RANK_COLOR};
-                font-weight: 900;
-              }
+              .title { font-family: Arial, sans-serif; font-size: 42px; font-weight: 900; fill: #000000; letter-spacing: 2px; text-transform: uppercase; }
+              .label { font-family: Arial, sans-serif; font-size: 24px; fill: #333333; letter-spacing: 1px; }
+              .value { font-family: 'Courier New', monospace; font-size: 18px; fill: #000000; font-weight: bold; }
+              .section-title { font-family: Arial, sans-serif; font-size: 28px; fill: #8B0000; letter-spacing: 1.5px; }
+              .body-text { font-family: 'Courier New', monospace; font-size: 12px; fill: #333333; }
+              .skill-text { font-family: 'Courier New', monospace; font-size: 14px; fill: #000000; font-weight: bold; }
+              .rank-text { font-family: Arial, sans-serif; font-size: 36px; fill: $RANK_COLOR; font-weight: 900; }
             </style>
             
             <linearGradient id="statBar" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -286,17 +186,17 @@ jobs:
           
           <!-- Cabeçalho -->
           <rect x="20" y="20" width="560" height="60" fill="#FFFFFF" stroke="#000000" stroke-width="2"/>
-          <text x="40" y="60" class="title">${NAME}</text>
+          <text x="40" y="60" class="title">$NAME</text>
           <text x="450" y="40" class="label">SLASS</text>
-          <text x="450" y="65" class="value">${SLASS}</text>
+          <text x="450" y="65" class="value">$SLASS</text>
           
           <!-- Informações básicas -->
           <g transform="translate(20, 90)">
             <text x="0" y="0" class="label">GUIDE</text>
-            <text x="100" y="0" class="value">${GUIDE}</text>
+            <text x="100" y="0" class="value">$GUIDE</text>
             
             <text x="300" y="0" class="label">GEN3M3xGAGE317 3xGRA<E></text>
-            <text x="520" y="0" class="value">${GENDER}</text>
+            <text x="520" y="0" class="value">$GENDER</text>
           </g>
           
           <!-- Linha divisória -->
@@ -306,7 +206,7 @@ jobs:
           <rect x="20" y="110" width="560" height="60" fill="#F0F0F0" stroke="#000000" stroke-width="1"/>
           <text x="25" y="125" class="section-title">INV$</text>
           <text x="25" y="145" class="body-text" style="font-weight: bold;">Backstory:</text>
-          <text x="25" y="165" class="body-text">${BACKSTORY}</text>
+          <text x="25" y="165" class="body-text">$BACKSTORY</text>
           
           <!-- Seção STATS/#SKILLS -->
           <g transform="translate(20, 180)">
@@ -317,38 +217,38 @@ jobs:
               <!-- STRENGTH -->
               <text x="0" y="0" class="label">STRENGTH</text>
               <rect x="150" y="-10" width="150" height="15" fill="#E0E0E0" stroke="#000000" stroke-width="1"/>
-              <rect x="150" y="-10" width="${STR_WIDTH}" height="15" fill="url(#statBar)"/>
-              <text x="310" y="3" class="value">${STRENGTH}/10</text>
+              <rect x="150" y="-10" width="$STR_WIDTH" height="15" fill="url(#statBar)"/>
+              <text x="310" y="3" class="value">$STRENGTH/10</text>
               
               <!-- HEALTH -->
               <text x="0" y="25" class="label">HEALTH</text>
               <rect x="150" y="15" width="150" height="15" fill="#E0E0E0" stroke="#000000" stroke-width="1"/>
-              <rect x="150" y="15" width="${HEALTH_WIDTH}" height="15" fill="url(#statBar)"/>
-              <text x="310" y="28" class="value">${HEALTH}/10</text>
+              <rect x="150" y="15" width="$HEALTH_WIDTH" height="15" fill="url(#statBar)"/>
+              <text x="310" y="28" class="value">$HEALTH/10</text>
               
               <!-- MAGIC POW -->
               <text x="0" y="50" class="label">MAGIC POW</text>
               <rect x="150" y="40" width="150" height="15" fill="#E0E0E0" stroke="#000000" stroke-width="1"/>
-              <rect x="150" y="40" width="${MAGIC_WIDTH}" height="15" fill="url(#statBar)"/>
-              <text x="310" y="53" class="value">${MAGIC_POW}/10</text>
+              <rect x="150" y="40" width="$MAGIC_WIDTH" height="15" fill="url(#statBar)"/>
+              <text x="310" y="53" class="value">$MAGIC_POW/10</text>
               
               <!-- DEXTERITY -->
               <text x="0" y="75" class="label">DEXTERITY</text>
               <rect x="150" y="65" width="150" height="15" fill="#E0E0E0" stroke="#000000" stroke-width="1"/>
-              <rect x="150" y="65" width="${DEX_WIDTH}" height="15" fill="url(#statBar)"/>
-              <text x="310" y="78" class="value">${DEXTERITY}/10</text>
+              <rect x="150" y="65" width="$DEX_WIDTH" height="15" fill="url(#statBar)"/>
+              <text x="310" y="78" class="value">$DEXTERITY/10</text>
               
               <!-- AGILITY -->
               <text x="0" y="100" class="label">AGILITY</text>
               <rect x="150" y="90" width="150" height="15" fill="#E0E0E0" stroke="#000000" stroke-width="1"/>
-              <rect x="150" y="90" width="${AGI_WIDTH}" height="15" fill="url(#statBar)"/>
-              <text x="310" y="103" class="value">${AGILITY}/10</text>
+              <rect x="150" y="90" width="$AGI_WIDTH" height="15" fill="url(#statBar)"/>
+              <text x="310" y="103" class="value">$AGILITY/10</text>
               
               <!-- LUCK -->
               <text x="0" y="125" class="label">LUCK</text>
               <rect x="150" y="115" width="150" height="15" fill="#E0E0E0" stroke="#000000" stroke-width="1"/>
-              <rect x="150" y="115" width="${LUCK_WIDTH}" height="15" fill="url(#statBar)"/>
-              <text x="310" y="128" class="value">${LUCK}/10</text>
+              <rect x="150" y="115" width="$LUCK_WIDTH" height="15" fill="url(#statBar)"/>
+              <text x="310" y="128" class="value">$LUCK/10</text>
             </g>
             
             <!-- Coluna de Skills -->
@@ -363,23 +263,42 @@ EOF
 
           # Adicionar skills dinamicamente
           SKILL_Y=40
-          for skill in "${SKILLS[@]}"; do
-            if [ -n "$skill" ]; then
-              echo "              <text x=\"10\" y=\"$SKILL_Y\" class=\"skill-text\">• $skill</text>" >> "$SVG_FILE"
-              SKILL_Y=$((SKILL_Y + 20))
-            fi
-          done
+          if [ -n "$SKILL1" ]; then
+            echo "              <text x=\"10\" y=\"$SKILL_Y\" class=\"skill-text\">• $SKILL1</text>" >> "$SVG_FILE"
+            SKILL_Y=$((SKILL_Y + 20))
+          fi
+          
+          if [ -n "$SKILL2" ]; then
+            echo "              <text x=\"10\" y=\"$SKILL_Y\" class=\"skill-text\">• $SKILL2</text>" >> "$SVG_FILE"
+            SKILL_Y=$((SKILL_Y + 20))
+          fi
+          
+          if [ -n "$SKILL3" ]; then
+            echo "              <text x=\"10\" y=\"$SKILL_Y\" class=\"skill-text\">• $SKILL3</text>" >> "$SVG_FILE"
+            SKILL_Y=$((SKILL_Y + 20))
+          fi
+          
+          if [ -n "$SKILL4" ]; then
+            echo "              <text x=\"10\" y=\"$SKILL_Y\" class=\"skill-text\">• $SKILL4</text>" >> "$SVG_FILE"
+            SKILL_Y=$((SKILL_Y + 20))
+          fi
           
           # Se não houver skills suficientes, preencher com placeholder
-          if [ ${#SKILLS[@]} -lt 4 ]; then
-            for ((i=${#SKILLS[@]}; i<4; i++)); do
+          SKILL_COUNT=0
+          [ -n "$SKILL1" ] && SKILL_COUNT=$((SKILL_COUNT + 1))
+          [ -n "$SKILL2" ] && SKILL_COUNT=$((SKILL_COUNT + 1))
+          [ -n "$SKILL3" ] && SKILL_COUNT=$((SKILL_COUNT + 1))
+          [ -n "$SKILL4" ] && SKILL_COUNT=$((SKILL_COUNT + 1))
+          
+          if [ $SKILL_COUNT -lt 4 ]; then
+            for ((i=SKILL_COUNT; i<4; i++)); do
               echo "              <text x=\"10\" y=\"$SKILL_Y\" class=\"skill-text\" opacity=\"0.5\">• [Empty Slot]</text>" >> "$SVG_FILE"
               SKILL_Y=$((SKILL_Y + 20))
             done
           fi
           
           # Continuar o SVG
-          cat >> "$SVG_FILE" << 'EOF'
+          cat >> "$SVG_FILE" << EOF
             </g>
           </g>
           
@@ -391,10 +310,10 @@ EOF
             <!-- Ranking section -->
             <rect x="400" y="-30" width="160" height="50" fill="#FFFFFF" stroke="#000000" stroke-width="2"/>
             <text x="410" y="-15" class="label">RANKING</text>
-            <text x="480" y="10" class="rank-text">${RANKING}</text>
+            <text x="480" y="10" class="rank-text">$RANKING</text>
             
             <!-- Data -->
-            <text x="0" y="40" class="body-text">Generated: ${CURRENT_DATE}</text>
+            <text x="0" y="40" class="body-text">Generated: $CURRENT_DATE</text>
             <text x="400" y="40" class="body-text">Card ID: ${NAME}-$(date +%s | tail -c 4)</text>
           </g>
           
@@ -420,17 +339,6 @@ EOF
           
           echo "✅ Card gerado com sucesso: $SVG_FILE"
 
-      - name: 📁 Listar arquivo gerado
-        run: |
-          echo "📂 Card gerado:"
-          ls -la cards/
-          echo ""
-          echo "📄 Preview do card:"
-          echo "========================================"
-          head -10 cards/*.svg
-          echo "..."
-          tail -10 cards/*.svg
-
       - name: 💾 Commit e Push automático
         run: |
           git config user.name "github-actions"
@@ -445,3 +353,5 @@ EOF
             git push
             echo "✅ Card salvo no repositório!"
           fi
+        env:
+          GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
