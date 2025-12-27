@@ -21,6 +21,8 @@ permissions:
 
 env:
   CHARACTER_FILE: character.yml
+  OUTPUT_SVG: cards/recreated_card.svg
+  OUTPUT_CSV: cards/recreated_card.csv
 
 jobs:
   validate:
@@ -29,32 +31,35 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Confirm manual run
         run: |
           echo "✅ Workflow disparado manualmente com sucesso"
-          echo "Se o botão Run workflow apareceu, prossiga para gerar o cartão."
+          echo "Inputs recebidos:"
+          echo "  usuario: ${{ github.event.inputs.usuario }}"
+          echo "  empresa: ${{ github.event.inputs.empresa }}"
+          echo "  cargo: ${{ github.event.inputs.cargo }}"
 
-  gerar-svg:
-    name: Gerar SVG do Guild Card
+  gerar-card:
+    name: Gerar SVG e CSV do Guild Card
     runs-on: ubuntu-latest
     needs: validate
     env:
-      # Prefer secret custom; se não existir, o script faz fallback para GITHUB_TOKEN
       API_TOKEN: ${{ secrets.TSUKUYOMI_CICONHA }}
+      OUTPUT_SVG: ${{ env.OUTPUT_SVG }}
+      OUTPUT_CSV: ${{ env.OUTPUT_CSV }}
     steps:
-      - name: Checkout do repositório
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Instalar dependências do sistema
+      - name: Install system deps
         run: |
           sudo apt-get update -y
           sudo apt-get install -y curl jq
 
-      - name: Buscar dados do GitHub e preparar variáveis
+      - name: Fetch GitHub data and prepare variables
         id: fetch-data
         run: |
-          # Fallback para GITHUB_TOKEN se API_TOKEN não estiver definido
+          # token fallback
           if [ -n "${{ env.API_TOKEN }}" ]; then
             TOKEN="${{ env.API_TOKEN }}"
           else
@@ -62,36 +67,17 @@ jobs:
           fi
 
           if [ -z "$TOKEN" ]; then
-            echo "❌ Nenhum token disponível. Configure secrets.TSUKUYOMI_CICONHA ou use GITHUB_TOKEN."
+            echo "ERROR: No token available. Set secrets.TSUKUYOMI_CICONHA or rely on GITHUB_TOKEN."
             exit 1
           fi
 
           USER="${{ github.event.inputs.usuario || 'ciconha' }}"
-          echo "Coletando dados do usuário: $USER"
+          curl -s -H "Authorization: token $TOKEN" "https://api.github.com/users/$USER" > user.json || true
+          curl -s -H "Authorization: token $TOKEN" "https://api.github.com/users/$USER/repos?per_page=100&sort=updated" > repos.json || true
+          curl -s -H "Authorization: token $TOKEN" "https://api.github.com/users/$USER/events?per_page=100" > events.json || true
 
-          # Buscar dados do usuário
-          curl -s -H "Authorization: token $TOKEN" \
-               -H "Accept: application/vnd.github.v3+json" \
-               "https://api.github.com/users/$USER" > user.json || { echo "Falha ao buscar user"; exit 1; }
-
-          # Validar resposta
-          if ! jq -e '.login' user.json > /dev/null 2>&1; then
-            echo "❌ Usuário não encontrado ou token inválido"
-            cat user.json
-            exit 1
-          fi
-
-          # Repos e eventos
-          curl -s -H "Authorization: token $TOKEN" \
-               -H "Accept: application/vnd.github.v3+json" \
-               "https://api.github.com/users/$USER/repos?per_page=100&sort=updated" > repos.json || true
-
-          curl -s -H "Authorization: token $TOKEN" \
-               -H "Accept: application/vnd.github.v3+json" \
-               "https://api.github.com/users/$USER/events?per_page=100" > events.json || true
-
-          # Sanitização e extração com fallback
           sanitize() { echo "$1" | iconv -c -t UTF-8//TRANSLIT | tr -d '\n' | sed 's/"/\\"/g'; }
+
           LOGIN=$(jq -r '.login // empty' user.json || echo "$USER")
           NAME=$(jq -r '.name // empty' user.json); NAME=${NAME:-$LOGIN}; NAME=$(sanitize "$NAME")
           BIO=$(jq -r '.bio // empty' user.json); BIO=${BIO:-"Desenvolvedor apaixonado por tecnologia."}; BIO=$(sanitize "$BIO")
@@ -107,7 +93,6 @@ jobs:
           LEVEL=$((TOTAL_XP / 1000 + 1)); [ $LEVEL -lt 1 ] && LEVEL=1
           XP_PERCENTAGE=$(( (TOTAL_XP % 1000) * 100 / 1000 )); [ $XP_PERCENTAGE -lt 0 ] && XP_PERCENTAGE=0
 
-          # Classe e rank simples
           if [ "$REPOS" -gt 100 ]; then CLASS="Lendário"
           elif [ "$REPOS" -gt 50 ]; then CLASS="Épico"
           elif [ "$FOLLOWERS" -gt 100 ]; then CLASS="Lenda"
@@ -117,10 +102,8 @@ jobs:
           elif [ "$REPOS" -gt 50 ]; then RANK="Épico"
           else RANK="Herói"; fi
 
-          # Top projects
           jq 'sort_by(-.stargazers_count) | [.[0:2] | .[] | {name: .name, stars: (.stargazers_count // 0)}]' repos.json > top_projects.json 2>/dev/null || echo '[]' > top_projects.json
 
-          # Export outputs
           echo "login=$LOGIN" >> $GITHUB_OUTPUT
           echo "name=$NAME" >> $GITHUB_OUTPUT
           echo "bio=$BIO" >> $GITHUB_OUTPUT
@@ -136,7 +119,7 @@ jobs:
           echo "class=$CLASS" >> $GITHUB_OUTPUT
           echo "rank=$RANK" >> $GITHUB_OUTPUT
 
-      - name: Gerar SVG Dark Red Minimalista
+      - name: Generate SVG and CSV
         run: |
           mkdir -p cards
           USERNAME="${{ steps.fetch-data.outputs.login }}"
@@ -163,20 +146,78 @@ jobs:
           BAR_WIDTH=$((400 * XP_PERCENTAGE / 100)); [ $BAR_WIDTH -gt 400 ] && BAR_WIDTH=400
 
           SVG_FILE="cards/${USERNAME}.svg"
-          cat > "$SVG_FILE" <<'EOF'
+          cat > "$SVG_FILE" <<EOF
 <svg xmlns="http://www.w3.org/2000/svg" width="460" height="280" viewBox="0 0 460 280">
-  <!-- (SVG template com placeholders será preenchido pelo shell acima) -->
+  <defs>
+    <linearGradient id="darkRedBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a0000"/>
+      <stop offset="50%" stop-color="#360000"/>
+      <stop offset="100%" stop-color="#1a0000"/>
+    </linearGradient>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+      .title { font-family: 'Orbitron', monospace; font-size: 24px; font-weight: 900; fill: #FF2222; }
+      .subtitle { font-family: 'Orbitron', monospace; font-size: 12px; fill: #FF6666; }
+      .text { font-family: 'Share Tech Mono', monospace; font-size: 11px; fill: #FFAAAA; }
+      .tech { font-family: 'Share Tech Mono', monospace; font-size: 10px; fill: #FF8888; }
+      .bar-bg { fill: #0a0000; }
+      .bar-fill { fill: #ff3333; }
+    </style>
+  </defs>
+
+  <rect width="460" height="280" rx="15" ry="15" fill="url(#darkRedBg)" stroke="#880000" stroke-width="2"/>
+  <g>
+    <text x="30" y="55" class="title">${NAME}</text>
+    <text x="30" y="75" class="subtitle">[ ${EMPRESA} ] • { ${CARGO} }</text>
+    <text x="30" y="93" class="subtitle">[ ${CLASS} ] • { ${RANK} }</text>
+    <rect x="25" y="105" width="410" height="35" rx="5" fill="#110000" opacity="0.5" stroke="#330000" stroke-width="1"/>
+    <text x="30" y="125" class="text">"${BIO}"</text>
+
+    <rect x="25" y="150" width="200" height="60" rx="8" fill="#0a0000" opacity="0.7" stroke="#440000" stroke-width="1"/>
+    <text x="35" y="170" class="tech">⚡ TECH STACK:</text>
+    <text x="35" y="190" class="subtitle">${LANG}</text>
+
+    <rect x="235" y="150" width="200" height="60" rx="8" fill="#0a0000" opacity="0.7" stroke="#440000" stroke-width="1"/>
+    <text x="245" y="170" class="tech">🎮 PLAYER STATS:</text>
+    <text x="245" y="190" class="subtitle">LVL ${LEVEL} • XP ${TOTAL_XP}</text>
+
+    <text x="30" y="235" class="tech">PROGRESSO [ ${XP_PERCENTAGE}% ]:</text>
+    <rect x="30" y="240" width="400" height="12" class="bar-bg" rx="6" ry="6"/>
+    <rect x="30" y="240" width="${BAR_WIDTH}" height="12" class="bar-fill" rx="6" ry="6"/>
+
+    <rect x="25" y="255" width="410" height="40" rx="5" fill="#110000" opacity="0.6" stroke="#330000" stroke-width="1"/>
+    <text x="30" y="272" class="subtitle">⭐ PROJECT HIGHLIGHTS:</text>
+    <text x="35" y="290" class="text">» ${PROJECT1_NAME} — ⭐${PROJECT1_STARS}</text>
+    <text x="230" y="290" class="text">» ${PROJECT2_NAME} — ⭐${PROJECT2_STARS}</text>
+
+    <text x="230" y="320" text-anchor="middle" class="tech">[ ${CURRENT_DATE} ] • COMMITS:${COMMITS} • PRs:${PRS} • ISSUES:${ISSUES}</text>
+  </g>
 </svg>
 EOF
-          echo "✅ SVG gerado: $SVG_FILE"
-          echo "Tamanho: $(wc -c < "$SVG_FILE") bytes"
 
-      - name: Listar arquivos gerados
+          # CSV output (one-line summary)
+          CSV_FILE="cards/${USERNAME}.csv"
+          echo "username,name,repos,followers,commits,prs,issues,lang,level,total_xp,xp_percentage,class,rank,date" > "$CSV_FILE"
+          echo "${USERNAME},\"${NAME}\",${REPOS},${FOLLOWERS},${COMMITS},${PRS},${ISSUES},\"${LANG}\",${LEVEL},${TOTAL_XP},${XP_PERCENTAGE},${CLASS},${RANK},${CURRENT_DATE}" >> "$CSV_FILE"
+
+          echo "SVG gerado: $SVG_FILE"
+          echo "CSV gerado: $CSV_FILE"
+
+      - name: List generated files
         run: |
           ls -la cards || true
+          echo "---- SVG preview ----"
           head -n 40 cards/*.svg || true
+          echo "---- CSV preview ----"
+          cat cards/*.csv || true
 
-      - name: Commit e push automático (opcional)
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: guild-card-assets
+          path: cards/
+
+      - name: Optional commit back to repo
         if: ${{ github.ref == 'refs/heads/' + github.repository_owner || always() }}
         run: |
           git config user.name "github-actions"
