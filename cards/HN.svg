@@ -1,92 +1,164 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400">
-  <!-- Fundo -->
-  <rect width="600" height="400" fill="#f0f0f0" stroke="#000" stroke-width="3"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="580" height="380" viewBox="0 0 580 380">
+<defs>
+  <!-- Gradientes anime -->
+  <linearGradient id="cardGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#1a1a2e"/>
+    <stop offset="100%" stop-color="#16213e"/>
+  </linearGradient>
   
-  <!-- Cabeçalho -->
-  <rect x="20" y="20" width="560" height="60" fill="#fff" stroke="#000" stroke-width="2"/>
-  <text x="40" y="55" font-family="Arial" font-size="36" font-weight="bold">H/N</text>
-  <text x="450" y="35" font-family="Arial" font-size="20">SLASS</text>
-  <text x="450" y="60" font-family="Courier" font-size="18" font-weight="bold">Superhero</text>
+  <linearGradient id="statGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#FF6B6B"/>
+    <stop offset="50%" stop-color="#FF8E8E"/>
+    <stop offset="100%" stop-color="#FF6B6B"/>
+  </linearGradient>
   
-  <!-- Informações -->
-  <text x="30" y="95" font-family="Arial" font-size="20">GUIDE</text>
-  <text x="100" y="95" font-family="Courier" font-size="16" font-weight="bold">14Ball Official</text>
-  <text x="300" y="95" font-family="Arial" font-size="18">GENDER/SPECIES</text>
-  <text x="480" y="95" font-family="Courier" font-size="16" font-weight="bold">Human</text>
+  <linearGradient id="headerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#00B4D8"/>
+    <stop offset="100%" stop-color="#0077B6"/>
+  </linearGradient>
   
-  <!-- Linha -->
-  <line x1="20" y1="105" x2="580" y2="105" stroke="#000" stroke-width="1"/>
+  <!-- Filtros anime -->
+  <filter id="softShadow">
+    <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#000" flood-opacity="0.3"/>
+  </filter>
   
-  <!-- História -->
-  <rect x="20" y="115" width="560" height="60" fill="#e8e8e8" stroke="#000" stroke-width="1"/>
-  <text x="30" y="135" font-family="Arial" font-size="22" fill="#8b0000" font-weight="bold">INV$</text>
-  <text x="30" y="155" font-family="Courier" font-size="12" font-weight="bold">Backstory:</text>
-  <text x="30" y="170" font-family="Courier" font-size="11">Being from another dimension, H/N doesn't have any powers. Though, being a very good fighter mixed with having knowledge of most everything makes him a formidable adversary.</text>
+  <filter id="glow">
+    <feGaussianBlur stdDeviation="2" result="blur"/>
+    <feMerge>
+      <feMergeNode in="blur"/>
+      <feMergeNode in="SourceGraphic"/>
+    </feMerge>
+  </filter>
+</defs>
+
+<!-- Fundo do card com cantos arredondados -->
+<rect width="580" height="380" rx="20" fill="url(#cardGradient)"/>
+
+<!-- Header com cantos arredondados -->
+<rect x="20" y="20" width="540" height="60" rx="15" fill="#252547" opacity="0.9"/>
+
+<!-- Nome do Herói -->
+<text x="40" y="55" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="white">H/N</text>
+
+<!-- Badge da Classe -->
+<rect x="440" y="30" width="110" height="25" rx="12" fill="url(#headerGradient)"/>
+<text x="450" y="40" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">CLASS</text>
+<text x="495" y="48" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white">Superhero</text>
+
+<!-- Informações em container arredondado -->
+<g transform="translate(20, 90)">
+  <rect x="0" y="0" width="540" height="40" rx="10" fill="#2d3748" opacity="0.8"/>
   
-  <!-- Título Stats -->
-  <text x="30" y="205" font-family="Arial" font-size="24" fill="#8b0000" font-weight="bold">STATS/#SKILLS</text>
+  <!-- Guilda -->
+  <text x="20" y="15" font-family="Arial, sans-serif" font-size="12" fill="#A0A0C0">GUIDE</text>
+  <text x="20" y="30" font-family="Courier, monospace" font-size="13" font-weight="bold" fill="#FFD166">14Ball Official</text>
   
-  <!-- Stats - Coluna Esquerda -->
-  <!-- STRENGTH -->
-  <text x="30" y="235" font-family="Arial" font-size="20">STRENGTH</text>
-  <rect x="150" y="220" width="150" height="15" fill="#ccc" stroke="#000" stroke-width="1"/>
-  <rect x="150" y="220" width="105" height="15" fill="#8b0000"/>
-  <text x="310" y="233" font-family="Courier" font-size="14" font-weight="bold">7/10</text>
+  <!-- Espécie -->
+  <text x="300" y="15" font-family="Arial, sans-serif" font-size="12" fill="#A0A0C0">GENDER/SPECIES</text>
+  <text x="300" y="30" font-family="Courier, monospace" font-size="13" font-weight="bold" fill="#4ECDC4">Human</text>
+</g>
+
+<!-- Linha divisória decorativa -->
+<line x1="20" y1="140" x2="560" y2="140" stroke="#00B4D8" stroke-width="2" opacity="0.5"/>
+
+<!-- História em container arredondado -->
+<g transform="translate(20, 150)">
+  <rect x="0" y="0" width="540" height="50" rx="10" fill="#252547" opacity="0.8"/>
+  <text x="15" y="15" font-family="Arial, sans-serif" font-size="13" fill="#FF6B6B" font-weight="bold">INV$</text>
+  <text x="15" y="32" font-family="Courier, monospace" font-size="10" fill="#E0E0FF">Backstory:</text>
+  <text x="15" y="45" font-family="Courier, monospace" font-size="9" fill="#C0C0E0">Being from another dimension, H/N doesn't have any powers. Though, being a very good fighter mixed with having knowledge of most everything makes him a formidable adversary.</text>
+</g>
+
+<!-- Título Stats -->
+<text x="30" y="220" font-family="Arial, sans-serif" font-size="18" fill="#00B4D8" font-weight="bold">STATS/#SKILLS</text>
+
+<!-- Stats em grid 2x3 com cantos arredondados -->
+<g transform="translate(30, 235)">
+  <!-- Linha 1 -->
+  <g>
+    <text x="0" y="15" font-family="Arial, sans-serif" font-size="12" fill="#C0C0E0">STRENGTH</text>
+    <rect x="100" y="5" width="130" height="10" rx="5" fill="#2A2A4A"/>
+    <rect x="100" y="5" width="91" height="10" rx="5" fill="url(#statGradient)"/>
+    <text x="235" y="13" font-family="Courier, monospace" font-size="11" fill="white">7/10</text>
+  </g>
   
-  <!-- HEALTH -->
-  <text x="30" y="265" font-family="Arial" font-size="20">HEALTH</text>
-  <rect x="150" y="250" width="150" height="15" fill="#ccc" stroke="#000" stroke-width="1"/>
-  <rect x="150" y="250" width="120" height="15" fill="#8b0000"/>
-  <text x="310" y="263" font-family="Courier" font-size="14" font-weight="bold">8/10</text>
+  <g transform="translate(280, 0)">
+    <text x="0" y="15" font-family="Arial, sans-serif" font-size="12" fill="#C0C0E0">HEALTH</text>
+    <rect x="100" y="5" width="130" height="10" rx="5" fill="#2A2A4A"/>
+    <rect x="100" y="5" width="104" height="10" rx="5" fill="url(#statGradient)"/>
+    <text x="235" y="13" font-family="Courier, monospace" font-size="11" fill="white">8/10</text>
+  </g>
   
-  <!-- MAGIC POW -->
-  <text x="30" y="295" font-family="Arial" font-size="20">MAGIC POW</text>
-  <rect x="150" y="280" width="150" height="15" fill="#ccc" stroke="#000" stroke-width="1"/>
-  <rect x="150" y="280" width="75" height="15" fill="#8b0000"/>
-  <text x="310" y="293" font-family="Courier" font-size="14" font-weight="bold">5/10</text>
+  <!-- Linha 2 -->
+  <g transform="translate(0, 35)">
+    <text x="0" y="15" font-family="Arial, sans-serif" font-size="12" fill="#C0C0E0">MAGIC POW</text>
+    <rect x="100" y="5" width="130" height="10" rx="5" fill="#2A2A4A"/>
+    <rect x="100" y="5" width="65" height="10" rx="5" fill="url(#statGradient)"/>
+    <text x="235" y="13" font-family="Courier, monospace" font-size="11" fill="white">5/10</text>
+  </g>
   
-  <!-- Stats - Coluna Direita -->
-  <!-- DEXTERITY -->
-  <text x="30" y="325" font-family="Arial" font-size="20">DEXTERITY</text>
-  <rect x="150" y="310" width="150" height="15" fill="#ccc" stroke="#000" stroke-width="1"/>
-  <rect x="150" y="310" width="135" height="15" fill="#8b0000"/>
-  <text x="310" y="323" font-family="Courier" font-size="14" font-weight="bold">9/10</text>
+  <g transform="translate(280, 35)">
+    <text x="0" y="15" font-family="Arial, sans-serif" font-size="12" fill="#C0C0E0">DEXTERITY</text>
+    <rect x="100" y="5" width="130" height="10" rx="5" fill="#2A2A4A"/>
+    <rect x="100" y="5" width="117" height="10" rx="5" fill="url(#statGradient)"/>
+    <text x="235" y="13" font-family="Courier, monospace" font-size="11" fill="white">9/10</text>
+  </g>
   
-  <!-- AGILITY -->
-  <text x="30" y="355" font-family="Arial" font-size="20">AGILITY</text>
-  <rect x="150" y="340" width="150" height="15" fill="#ccc" stroke="#000" stroke-width="1"/>
-  <rect x="150" y="340" width="120" height="15" fill="#8b0000"/>
-  <text x="310" y="353" font-family="Courier" font-size="14" font-weight="bold">8/10</text>
+  <!-- Linha 3 -->
+  <g transform="translate(0, 70)">
+    <text x="0" y="15" font-family="Arial, sans-serif" font-size="12" fill="#C0C0E0">AGILITY</text>
+    <rect x="100" y="5" width="130" height="10" rx="5" fill="#2A2A4A"/>
+    <rect x="100" y="5" width="104" height="10" rx="5" fill="url(#statGradient)"/>
+    <text x="235" y="13" font-family="Courier, monospace" font-size="11" fill="white">8/10</text>
+  </g>
   
-  <!-- LUCK -->
-  <text x="30" y="385" font-family="Arial" font-size="20">LUCK</text>
-  <rect x="150" y="370" width="150" height="15" fill="#ccc" stroke="#000" stroke-width="1"/>
-  <rect x="150" y="370" width="90" height="15" fill="#8b0000"/>
-  <text x="310" y="383" font-family="Courier" font-size="14" font-weight="bold">6/10</text>
+  <g transform="translate(280, 70)">
+    <text x="0" y="15" font-family="Arial, sans-serif" font-size="12" fill="#C0C0E0">LUCK</text>
+    <rect x="100" y="5" width="130" height="10" rx="5" fill="#2A2A4A"/>
+    <rect x="100" y="5" width="78" height="10" rx="5" fill="url(#statGradient)"/>
+    <text x="235" y="13" font-family="Courier, monospace" font-size="11" fill="white">6/10</text>
+  </g>
+</g>
+
+<!-- Skills em container arredondado -->
+<g transform="translate(30, 320)">
+  <rect x="0" y="0" width="250" height="40" rx="10" fill="#252547" opacity="0.8"/>
+  <text x="10" y="15" font-family="Arial, sans-serif" font-size="14" fill="#00B4D8" font-weight="bold">ACTIVE SKILLS</text>
+  <text x="10" y="30" font-family="Courier, monospace" font-size="12" fill="#FFD166">• Determination</text>
+  <text x="130" y="30" font-family="Courier, monospace" font-size="12" fill="#4ECDC4">• Spinitzu</text>
+</g>
+
+<!-- Footer com cantos arredondados -->
+<g transform="translate(20, 320)">
+  <!-- Superhero label -->
+  <rect x="300" y="0" width="120" height="40" rx="10" fill="#2d3748" opacity="0.8"/>
+  <text x="310" y="15" font-family="Arial, sans-serif" font-size="14" fill="#FF6B6B" font-weight="bold">SUPERHERO</text>
   
-  <!-- Skills -->
-  <text x="400" y="235" font-family="Arial" font-size="22" fill="#8b0000" font-weight="bold">ACTIVE SKILLS</text>
-  <rect x="400" y="245" width="160" height="120" fill="#e8e8e8" stroke="#000" stroke-width="1"/>
-  <text x="410" y="265" font-family="Courier" font-size="14" font-weight="bold">• Determination</text>
-  <text x="410" y="285" font-family="Courier" font-size="14" font-weight="bold">• Spinitzu</text>
-  <text x="410" y="305" font-family="Courier" font-size="14" font-weight="bold" opacity="0.5">• [Empty Slot]</text>
-  <text x="410" y="325" font-family="Courier" font-size="14" font-weight="bold" opacity="0.5">• [Empty Slot]</text>
-  
-  <!-- Footer -->
-  <text x="30" y="420" font-family="Arial" font-size="22" fill="#8b0000" font-weight="bold">SUPERHERO</text>
-  
-  <!-- Ranking -->
-  <rect x="400" y="385" width="160" height="50" fill="#fff" stroke="#000" stroke-width="2"/>
-  <text x="410" y="405" font-family="Arial" font-size="20">RANKING</text>
-  <text x="475" y="430" font-family="Arial" font-size="32" font-weight="bold" fill="#FF4500">A</text>
-  
-  <!-- Data -->
-  <text x="30" y="450" font-family="Courier" font-size="10">Generated: 27/12/2025</text>
-  <text x="400" y="450" font-family="Courier" font-size="10">Card ID: HN</text>
-  
-  <!-- Cantos decorativos -->
-  <rect x="15" y="15" width="10" height="10" fill="#8b0000"/>
-  <rect x="575" y="15" width="10" height="10" fill="#8b0000"/>
-  <rect x="15" y="375" width="10" height="10" fill="#8b0000"/>
-  <rect x="575" y="375" width="10" height="10" fill="#8b0000"/>
+  <!-- Badge do Ranking -->
+  <rect x="440" y="0" width="120" height="40" rx="10" fill="#252547" opacity="0.9"/>
+  <text x="450" y="15" font-family="Arial, sans-serif" font-size="12" fill="#A0A0C0">RANKING</text>
+  <text x="500" y="35" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#FF6B6B" text-anchor="middle">A</text>
+</g>
+
+<!-- Informações do rodapé -->
+<g transform="translate(20, 365)">
+  <text x="0" y="0" font-family="Courier, monospace" font-size="9" fill="#8888AA">Generated: 27/12/2025</text>
+  <text x="400" y="0" font-family="Courier, monospace" font-size="9" fill="#8888AA">Card ID: HN</text>
+</g>
+
+<!-- Elementos decorativos anime (cantos arredondados) -->
+<!-- Cantos superiores -->
+<rect x="25" y="25" width="10" height="10" rx="3" fill="#00B4D8" opacity="0.5"/>
+<rect x="545" y="25" width="10" height="10" rx="3" fill="#FF6B6B" opacity="0.5"/>
+
+<!-- Cantos inferiores -->
+<rect x="25" y="345" width="10" height="10" rx="3" fill="#4ECDC4" opacity="0.5"/>
+<rect x="545" y="345" width="10" height="10" rx="3" fill="#FFD166" opacity="0.5"/>
+
+<!-- Pontos decorativos anime -->
+<circle cx="50" cy="50" r="3" fill="#00B4D8" opacity="0.7"/>
+<circle cx="530" cy="50" r="3" fill="#FF6B6B" opacity="0.7"/>
+<circle cx="50" cy="330" r="3" fill="#4ECDC4" opacity="0.7"/>
+<circle cx="530" cy="330" r="3" fill="#FFD166" opacity="0.7"/>
+
 </svg>
