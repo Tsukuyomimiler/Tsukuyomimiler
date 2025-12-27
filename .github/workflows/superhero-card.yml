@@ -73,73 +73,102 @@ jobs:
           
           echo "📡 Buscando dados do GitHub para: $USER"
           
-          # Buscar dados do usuário
-          if [ -n "$GH_TOKEN" ]; then
+          # Limpar e sanitizar input
+          USER=$(echo "$USER" | tr -cd '[:alnum:]_-')
+          
+          # Buscar dados do usuário com fallback
+          if [ -n "$GH_TOKEN" ] && [ "$GH_TOKEN" != "" ]; then
             curl -s -H "Authorization: token $GH_TOKEN" \
-                 "https://api.github.com/users/$USER" > user.json
+                 "https://api.github.com/users/$USER" > user.json || true
             curl -s -H "Authorization: token $GH_TOKEN" \
-                 "https://api.github.com/users/$USER/repos?sort=stars&per_page=5" > repos.json
+                 "https://api.github.com/users/$USER/repos?sort=stars&per_page=5" > repos.json || true
           else
-            curl -s "https://api.github.com/users/$USER" > user.json
-            curl -s "https://api.github.com/users/$USER/repos?sort=stars&per_page=5" > repos.json
+            curl -s "https://api.github.com/users/$USER" > user.json || true
+            curl -s "https://api.github.com/users/$USER/repos?sort=stars&per_page=5" > repos.json || true
           fi
           
-          # Extrair dados
-          AVATAR_URL=$(jq -r '.avatar_url' user.json | sed 's/\?v=.*//')
-          AVATAR_URL="${AVATAR_URL}&size=150"
-          
-          BIO=$(jq -r '.bio // "Developer passionate about technology."' user.json)
-          if [ "$BIO" = "null" ]; then
-            BIO="Developer passionate about technology."
-          fi
-          
-          # Nome (usar do GitHub se não fornecido)
-          GITHUB_NAME=$(jq -r '.name // ""' user.json)
-          if [ -z "$GITHUB_NAME" ] || [ "$GITHUB_NAME" = "null" ]; then
+          # Verificar se a resposta é válida
+          if [ ! -s user.json ] || ! jq -e '.login' user.json >/dev/null 2>&1; then
+            echo "⚠️ Usuário não encontrado, usando dados padrão"
+            AVATAR_URL="https://avatars.githubusercontent.com/u/583231?v=4&size=150"
             GITHUB_NAME="$USER"
+            BIO="Developer passionate about technology."
+            PUBLIC_REPOS="0"
+            FOLLOWERS="0"
+          else
+            # Extrair dados com sanitização
+            AVATAR_URL=$(jq -r '.avatar_url // "https://avatars.githubusercontent.com/u/583231?v=4"' user.json | sed 's/\?v=.*//; s/$/\&size=150/')
+            
+            BIO=$(jq -r '.bio // "Developer passionate about technology."' user.json)
+            BIO=$(echo "$BIO" | tr -d '\r\n' | sed 's/"/\\"/g' | head -c 200)
+            
+            # Nome
+            GITHUB_NAME=$(jq -r '.name // ""' user.json)
+            if [ -z "$GITHUB_NAME" ] || [ "$GITHUB_NAME" = "null" ]; then
+              GITHUB_NAME="$USER"
+            fi
+            GITHUB_NAME=$(echo "$GITHUB_NAME" | tr -d '\r\n' | head -c 50)
+            
+            # Stats
+            PUBLIC_REPOS=$(jq -r '.public_repos // 0' user.json)
+            FOLLOWERS=$(jq -r '.followers // 0' user.json)
           fi
           
-          # Contar repositórios e seguidores
-          PUBLIC_REPOS=$(jq -r '.public_repos // 0' user.json)
-          FOLLOWERS=$(jq -r '.followers // 0' user.json)
-          
-          # Top 3 projetos com mais estrelas
+          # Top projetos (com fallback)
           echo '[]' > top_projects.json
-          if [ -f repos.json ] && [ -s repos.json ]; then
-            jq '[.[0:3] | .[] | {name: .name, stars: (.stargazers_count // 0), language: (.language // "N/A")}]' repos.json > top_projects.json
+          if [ -f repos.json ] && [ -s repos.json ] && jq -e '. | length > 0' repos.json >/dev/null 2>&1; then
+            jq '[.[0:3] | .[] | {name: (.name // "No name"), stars: (.stargazers_count // 0), language: (.language // "N/A")}]' repos.json > top_projects.json 2>/dev/null || echo '[]' > top_projects.json
           fi
           
-          echo "avatar_url=$AVATAR_URL" >> $GITHUB_OUTPUT
-          echo "github_name=$GITHUB_NAME" >> $GITHUB_OUTPUT
-          echo "bio=$BIO" >> $GITHUB_OUTPUT
-          echo "public_repos=$PUBLIC_REPOS" >> $GITHUB_OUTPUT
-          echo "followers=$FOLLOWERS" >> $GITHUB_OUTPUT
+          # Sanitizar outputs
+          AVATAR_URL=$(echo "$AVATAR_URL" | tr -d '\r\n')
+          GITHUB_NAME=$(echo "$GITHUB_NAME" | tr -d '\r\n')
+          BIO=$(echo "$BIO" | tr -d '\r\n')
           
-          echo "✅ Dados coletados:"
-          echo "👤 Nome: $GITHUB_NAME"
-          echo "📝 Bio: $BIO"
-          echo "📦 Repos: $PUBLIC_REPOS"
-          echo "👥 Seguidores: $FOLLOWERS"
+          # Outputs formatados corretamente
+          echo "avatar_url=${AVATAR_URL}" >> $GITHUB_OUTPUT
+          echo "github_name=${GITHUB_NAME}" >> $GITHUB_OUTPUT
+          echo "bio=${BIO}" >> $GITHUB_OUTPUT
+          echo "public_repos=${PUBLIC_REPOS}" >> $GITHUB_OUTPUT
+          echo "followers=${FOLLOWERS}" >> $GITHUB_OUTPUT
+          
+          echo "✅ Dados coletados com sucesso"
       
       - name: 🎨 Criar diretório para cards
         run: mkdir -p cards
       
       - name: 🖼️ Gerar Card Dev Minimalista
         run: |
-          # Dados do GitHub
+          # Dados do GitHub (com fallback)
           AVATAR_URL="${{ steps.github-data.outputs.avatar_url }}"
+          if [ -z "$AVATAR_URL" ]; then
+            AVATAR_URL="https://avatars.githubusercontent.com/u/583231?v=4&size=150"
+          fi
+          
           GITHUB_NAME="${{ steps.github-data.outputs.github_name }}"
+          if [ -z "$GITHUB_NAME" ]; then
+            GITHUB_NAME="${{ github.event.inputs.github_user }}"
+          fi
+          
           BIO="${{ steps.github-data.outputs.bio }}"
+          if [ -z "$BIO" ]; then
+            BIO="Developer passionate about technology."
+          fi
+          
           PUBLIC_REPOS="${{ steps.github-data.outputs.public_repos }}"
           FOLLOWERS="${{ steps.github-data.outputs.followers }}"
           
-          # Inputs do usuário
+          # Inputs do usuário com fallback
           FULL_NAME="${{ github.event.inputs.full_name }}"
-          if [ -z "$FULL_NAME" ] || [ "$FULL_NAME" = "null" ]; then
+          if [ -z "$FULL_NAME" ] || [ "$FULL_NAME" = "null" ] || [ "$FULL_NAME" = "" ]; then
             FULL_NAME="$GITHUB_NAME"
           fi
           
           COMPANY="${{ github.event.inputs.company }}"
+          if [ -z "$COMPANY" ] || [ "$COMPANY" = "null" ]; then
+            COMPANY="Not specified"
+          fi
+          
           ROLE="${{ github.event.inputs.role }}"
           LOCATION="${{ github.event.inputs.location }}"
           MAIN_LANG="${{ github.event.inputs.main_language }}"
@@ -148,31 +177,84 @@ jobs:
           EXPERIENCE="${{ github.event.inputs.experience }}"
           AVAILABILITY="${{ github.event.inputs.availability }}"
           
-          # Ler projetos top
-          PROJECT1_NAME=$(jq -r '.[0].name // ""' top_projects.json 2>/dev/null)
-          PROJECT1_STARS=$(jq -r '.[0].stars // 0' top_projects.json 2>/dev/null)
-          PROJECT1_LANG=$(jq -r '.[0].language // ""' top_projects.json 2>/dev/null)
+          # Sanitizar strings para SVG
+          sanitize_svg() {
+            echo "$1" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'"'"'/\&apos;/g' | tr -d '\r\n' | head -c 100
+          }
           
-          PROJECT2_NAME=$(jq -r '.[1].name // ""' top_projects.json 2>/dev/null)
-          PROJECT2_STARS=$(jq -r '.[1].stars // 0' top_projects.json 2>/dev/null)
-          PROJECT2_LANG=$(jq -r '.[1].language // ""' top_projects.json 2>/dev/null)
+          FULL_NAME_CLEAN=$(sanitize_svg "$FULL_NAME")
+          COMPANY_CLEAN=$(sanitize_svg "$COMPANY")
+          ROLE_CLEAN=$(sanitize_svg "$ROLE")
+          BIO_CLEAN=$(sanitize_svg "$BIO")
+          LOCATION_CLEAN=$(sanitize_svg "$LOCATION")
+          MAIN_LANG_CLEAN=$(sanitize_svg "$MAIN_LANG")
+          FRAMEWORK_CLEAN=$(sanitize_svg "$FRAMEWORK")
+          DATABASE_CLEAN=$(sanitize_svg "$DATABASE")
           
-          PROJECT3_NAME=$(jq -r '.[2].name // ""' top_projects.json 2>/dev/null)
-          PROJECT3_STARS=$(jq -r '.[2].stars // 0' top_projects.json 2>/dev/null)
-          PROJECT3_LANG=$(jq -r '.[2].language // ""' top_projects.json 2>/dev/null)
+          # Ler projetos top com fallback
+          PROJECT1_NAME="No projects"
+          PROJECT1_STARS="0"
+          PROJECT1_LANG="N/A"
+          PROJECT2_NAME="No projects"
+          PROJECT2_STARS="0"
+          PROJECT2_LANG="N/A"
+          PROJECT3_NAME="No projects"
+          PROJECT3_STARS="0"
+          PROJECT3_LANG="N/A"
           
-          # Valores padrão para projetos
-          [ -z "$PROJECT1_NAME" ] && PROJECT1_NAME="No projects" && PROJECT1_STARS=0 && PROJECT1_LANG="N/A"
-          [ -z "$PROJECT2_NAME" ] && PROJECT2_NAME="No projects" && PROJECT2_STARS=0 && PROJECT2_LANG="N/A"
-          [ -z "$PROJECT3_NAME" ] && PROJECT3_NAME="No projects" && PROJECT3_STARS=0 && PROJECT3_LANG="N/A"
+          if [ -f top_projects.json ]; then
+            # Projeto 1
+            P1_NAME=$(jq -r '.[0].name // "No projects"' top_projects.json 2>/dev/null)
+            P1_STARS=$(jq -r '.[0].stars // 0' top_projects.json 2>/dev/null)
+            P1_LANG=$(jq -r '.[0].language // "N/A"' top_projects.json 2>/dev/null)
+            
+            if [ "$P1_NAME" != "null" ] && [ "$P1_NAME" != "" ]; then
+              PROJECT1_NAME=$(sanitize_svg "$P1_NAME")
+              PROJECT1_STARS="$P1_STARS"
+              PROJECT1_LANG=$(sanitize_svg "$P1_LANG")
+            fi
+            
+            # Projeto 2
+            P2_NAME=$(jq -r '.[1].name // "No projects"' top_projects.json 2>/dev/null)
+            P2_STARS=$(jq -r '.[1].stars // 0' top_projects.json 2>/dev/null)
+            P2_LANG=$(jq -r '.[1].language // "N/A"' top_projects.json 2>/dev/null)
+            
+            if [ "$P2_NAME" != "null" ] && [ "$P2_NAME" != "" ]; then
+              PROJECT2_NAME=$(sanitize_svg "$P2_NAME")
+              PROJECT2_STARS="$P2_STARS"
+              PROJECT2_LANG=$(sanitize_svg "$P2_LANG")
+            fi
+            
+            # Projeto 3
+            P3_NAME=$(jq -r '.[2].name // "No projects"' top_projects.json 2>/dev/null)
+            P3_STARS=$(jq -r '.[2].stars // 0' top_projects.json 2>/dev/null)
+            P3_LANG=$(jq -r '.[2].language // "N/A"' top_projects.json 2>/dev/null)
+            
+            if [ "$P3_NAME" != "null" ] && [ "$P3_NAME" != "" ]; then
+              PROJECT3_NAME=$(sanitize_svg "$P3_NAME")
+              PROJECT3_STARS="$P3_STARS"
+              PROJECT3_LANG=$(sanitize_svg "$P3_LANG")
+            fi
+          fi
           
           # Data
           DATE=$(date +'%d/%m/%Y')
-          FILENAME=$(echo "$FULL_NAME" | tr ' ' '_' | tr -cd '[:alnum:]_')
-          SVG_FILE="cards/${FILENAME}_dev.svg"
+          FILENAME=$(echo "$FULL_NAME_CLEAN" | tr ' ' '_' | tr -cd '[:alnum:]_-')
+          if [ -z "$FILENAME" ]; then
+            FILENAME="dev_card"
+          fi
+          SVG_FILE="cards/${FILENAME}.svg"
           
-          # Criar SVG Minimalista
-          cat > "$SVG_FILE" << EOF
+          # Calcular barra de disponibilidade
+          if [[ "$AVAILABILITY" =~ ^[0-9]+$ ]] && [ "$AVAILABILITY" -ge 0 ] && [ "$AVAILABILITY" -le 100 ]; then
+            BAR_WIDTH=$((320 * AVAILABILITY / 100))
+          else
+            BAR_WIDTH=256  # 80% como fallback
+            AVAILABILITY=80
+          fi
+          
+          # Criar SVG com escape correto
+          cat > "$SVG_FILE" << 'EOF'
           <svg xmlns="http://www.w3.org/2000/svg" width="500" height="300" viewBox="0 0 500 300">
           <defs>
             <style>
@@ -212,15 +294,21 @@ jobs:
           
           <circle cx="70" cy="70" r="32" fill="#f3f4f6"/>
           <circle cx="70" cy="70" r="30" fill="#f8fafc"/>
-          <image href="$AVATAR_URL" x="40" y="40" width="60" height="60" clip-path="url(#avatarClip)"/>
+          <image href="
+EOF
+          # Inserir URL do avatar (escapada)
+          echo "$AVATAR_URL" >> "$SVG_FILE"
+          
+          cat >> "$SVG_FILE" << EOF
+          " x="40" y="40" width="60" height="60" clip-path="url(#avatarClip)"/>
           
           <!-- Nome e título -->
-          <text x="120" y="55" class="name">$FULL_NAME</text>
-          <text x="120" y="75" class="title">$ROLE • $COMPANY</text>
+          <text x="120" y="55" class="name">$FULL_NAME_CLEAN</text>
+          <text x="120" y="75" class="title">$ROLE_CLEAN • $COMPANY_CLEAN</text>
           
           <!-- Bio -->
           <text x="120" y="95" class="label">SOBRE</text>
-          <text x="120" y="110" class="bio" width="200">$BIO</text>
+          <text x="120" y="110" class="bio">$BIO_CLEAN</text>
           
           <!-- Stats do GitHub -->
           <g transform="translate(120, 130)">
@@ -243,21 +331,21 @@ jobs:
             
             <g transform="translate(0, 15)">
               <rect x="0" y="0" width="140" height="25" rx="4" fill="#eff6ff"/>
-              <text x="10" y="16" class="value">$MAIN_LANG</text>
+              <text x="10" y="16" class="value">$MAIN_LANG_CLEAN</text>
               
               <rect x="150" y="0" width="140" height="25" rx="4" fill="#f0f9ff"/>
-              <text x="160" y="16" class="value">$FRAMEWORK</text>
+              <text x="160" y="16" class="value">$FRAMEWORK_CLEAN</text>
               
               <rect x="300" y="0" width="140" height="25" rx="4" fill="#f0fdf4"/>
-              <text x="310" y="16" class="value">$DATABASE</text>
+              <text x="310" y="16" class="value">$DATABASE_CLEAN</text>
             </g>
           </g>
           
-          <!-- Barra de experiência -->
+          <!-- Barra de disponibilidade -->
           <g transform="translate(20, 220)">
             <text x="0" y="0" class="label">AVAILABILITY</text>
             <rect x="0" y="10" width="320" height="8" rx="4" fill="#e5e7eb"/>
-            <rect x="0" y="10" width="$((320 * AVAILABILITY / 100))" height="8" rx="4" fill="url(#expBar)"/>
+            <rect x="0" y="10" width="$BAR_WIDTH" height="8" rx="4" fill="url(#expBar)"/>
             <text x="330" y="15" class="value">${AVAILABILITY}%</text>
           </g>
           
@@ -285,7 +373,7 @@ jobs:
           
           <!-- Footer -->
           <g transform="translate(20, 290)">
-            <text x="0" y="0" class="label">📍 $LOCATION</text>
+            <text x="0" y="0" class="label">📍 $LOCATION_CLEAN</text>
             <text x="350" y="0" class="label" text-anchor="end">Updated: $DATE</text>
           </g>
           
@@ -295,7 +383,7 @@ jobs:
           <line x1="20" y1="240" x2="480" y2="240" stroke="#e5e7eb" stroke-width="1"/>
           
           </svg>
-          EOF
+EOF
           
           echo "✅ Card Dev criado: $SVG_FILE"
           echo "👨‍💻 Design: Minimalista Dev"
