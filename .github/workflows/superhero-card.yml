@@ -259,10 +259,6 @@ jobs:
           <text x="120" y="55" class="name">$FULL_NAME_ESC</text>
           <text x="120" y="75" class="title">$ROLE_ESC • $COMPANY_ESC</text>
           
-          <!-- Bio -->
-          <text x="120" y="95" class="label">SOBRE</text>
-          <text x="120" y="110" class="bio">$BIO_ESC</text>
-          
           <!-- Stats do GitHub -->
           <g transform="translate(120, 130)">
             <rect x="0" y="0" width="100" height="30" rx="6" fill="#f8fafc"/>
