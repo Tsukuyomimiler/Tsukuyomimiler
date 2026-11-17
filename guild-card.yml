@@ -1,0 +1,44 @@
+guild_card:
+  player:
+    name: "Eduardo Ciconha"
+    username: "@ciconha"
+    avatar: "https://avatars.githubusercontent.com/u/131923066?v=4"
+    rank:
+      code: "E"
+      label: "NOVICE"
+      color: "#fc8181"
+  bio:
+    text: |
+      夜幕降临 
+      ブロック7
+      
+    location:
+      flag: "🌍"
+      country: "🇧🇷 (Brasil)"
+  class:
+    name: "FULLSTACK RANGER"
+    specialization: "Python Master"
+  stats:
+    stars: 60
+    forks: 1
+    repositories: 35
+    followers: 0
+  xp:
+    level: NaN
+    current: NaN
+    next_level: 2000
+    total: "0"
+    progress_percent: NaN
+  featured:
+    - name: "portifolio-mobile"
+      stars: 3
+      url: "https://github.com/ciconha/portifolio-mobile"
+    - name: "API-Dijkstra"
+      stars: 3
+      url: "https://github.com/ciconha/API-Dijkstra"
+    - name: "ciconha"
+      stars: 2
+      url: "https://github.com/ciconha/ciconha"
+  meta:
+    started_at: "2023-04-26"
+    formatted: "26/04/2023"
