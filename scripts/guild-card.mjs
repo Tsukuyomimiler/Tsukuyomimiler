@@ -7,56 +7,32 @@ const OUTPUT_YML = 'guild-card.yml';
 
 if (!USERNAME) { console.error('GH_USERNAME nao definido'); process.exit(1); }
 
-const HEADERS = TOKEN
-  ? { Authorization: 'Bearer ' + TOKEN, Accept: 'application/vnd.github+json' }
-  : { Accept: 'application/vnd.github+json' };
-
-const fmt = (n) => {
-  n = n || 0;
-  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
-  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
-  return String(n);
-};
-
-const esc = (s) => String(s == null ? '' : s)
-  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
-
-const trunc = (s, n) => s && s.length > n ? s.slice(0, n - 1) + '...' : (s || '');
+const HEADERS = TOKEN ? { Authorization: 'Bearer ' + TOKEN, Accept: 'application/vnd.github+json' } : { Accept: 'application/vnd.github+json' };
 
 async function fetchGH(url) {
   const res = await fetch(url, { headers: HEADERS });
-  if (!res.ok) {
-    if (res.status === 404) return null;
-    throw new Error('GitHub ' + res.status);
-  }
+  if (!res.ok) { if (res.status === 404) return null; throw new Error('GitHub ' + res.status); }
   return res.json();
 }
 
-async function avatarToDataURL(url) {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return url;
-    const buf = Buffer.from(await res.arrayBuffer());
-    const ct = res.headers.get('content-type') || 'image/png';
-    return 'data:' + ct + ';base64,' + buf.toString('base64');
-  } catch (_) { return url; }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&apos;');
 }
 
-async function fetchUser(username) {
+function trunc(s, n) {
+  return s && s.length > n ? s.slice(0, n - 1) + '...' : (s || '');
+}
+
+async function fetchAllData(username) {
   const user = await fetchGH('https://api.github.com/users/' + username);
   if (!user) throw new Error('Usuario nao encontrado');
   const repos = await fetchGH('https://api.github.com/users/' + username + '/repos?per_page=100&sort=updated') || [];
+
   const stars = repos.reduce((a, r) => a + (r.stargazers_count || 0), 0);
   const forks = repos.reduce((a, r) => a + (r.forks_count || 0), 0);
-  const topRepos = repos.filter(r => !r.fork)
-    .sort((a, b) => (b.stargazers_count || 0) - (a.stargazers_count || 0)).slice(0, 3);
-  const avatarData = await avatarToDataURL(user.avatar_url);
-  return { user, repos, topRepos, avatarData,
-    total_stars: stars, total_forks: forks, public_repos_count: user.public_repos || 0 };
-}
+  const topRepos = repos.filter(r => !r.fork).sort((a, b) => (b.stargazers_count || 0) - (a.stargazers_count || 0)).slice(0, 3);
 
-function detectClass(repos) {
+  // Detectar Classe
   const groups = {
     frontend: ['JavaScript','TypeScript','HTML','CSS','Vue','Svelte','SCSS','Less','Astro'],
     backend:  ['Python','Java','Go','Rust','Ruby','PHP','C#','Elixir','Scala','Kotlin','Perl','Clojure'],
@@ -79,59 +55,70 @@ function detectClass(repos) {
     if (counts.frontend > 0 && counts.backend > 0 && counts.frontend >= counts.backend * 0.6) key = 'fullstack';
     else key = sorted[0][0];
   } else if (active >= 1) key = sorted[0][0];
-  const map = {
-    frontend:  { name: 'FRONTEND WARRIOR' },
-    backend:   { name: 'BACKEND MAGE' },
-    fullstack: { name: 'FULLSTACK RANGER' },
-    mobile:    { name: 'MOBILE ASSASSIN' },
-    data:      { name: 'DATA ALCHEMIST' },
-    devops:    { name: 'DEVOPS CLERIC' },
-    systems:   { name: 'SYSTEMS BERSERKER' },
-    adventurer:{ name: 'CODE ADVENTURER' }
+  const classMap = {
+    frontend:  { name: 'FRONTEND WARRIOR', icon: '⚔️' },
+    backend:   { name: 'BACKEND MAGE', icon: '🔮' },
+    fullstack: { name: 'FULLSTACK RANGER', icon: '🏹' },
+    mobile:    { name: 'MOBILE ASSASSIN', icon: '🗡️' },
+    data:      { name: 'DATA ALCHEMIST', icon: '⚗️' },
+    devops:    { name: 'DEVOPS CLERIC', icon: '⛪' },
+    systems:   { name: 'SYSTEMS BERSERKER', icon: '🛡️' },
+    adventurer:{ name: 'CODE ADVENTURER', icon: '✨' }
   };
-  return { key, ...map[key], langTotals };
-}
+  const cls = { key, ...classMap[key], langTotals };
 
-function calcStats(u) {
-  const totalXP = (u.total_stars || 0) * 15 + (u.total_forks || 0) * 8 +
-                  (u.public_repos_count || 0) * 30 + (u.followers || 0) * 6 +
-                  Math.floor(((Date.now() - new Date(u.created_at)) / (365.25 * 24 * 3600 * 1000)) * 400);
+  // Calcular Stats
+  const age = (Date.now() - new Date(user.created_at)) / (365.25 * 24 * 3600 * 1000);
+  const totalXP = stars * 15 + forks * 8 + (user.public_repos || 0) * 30 + (user.followers || 0) * 6 + Math.floor(age * 400);
   const XP_PER_LEVEL = 2000;
   const level = Math.floor(totalXP / XP_PER_LEVEL) + 1;
   const xpCurrent = totalXP % XP_PER_LEVEL;
-  return { stars: u.total_stars || 0, forks: u.total_forks || 0,
-    repos: u.public_repos_count || 0, followers: u.followers || 0,
+  const stats = {
+    stars, forks, repos: user.public_repos || 0, followers: user.followers || 0,
     totalXP, level, xpCurrent, xpNeeded: XP_PER_LEVEL,
-    xpProgress: Math.min((xpCurrent / XP_PER_LEVEL) * 100, 100) };
+    xpProgress: Math.min((xpCurrent / XP_PER_LEVEL) * 100, 100)
+  };
+
+  // Calcular Rank
+  let rank = { rank: 'E', color: '#fc8181', name: 'NOVICE' };
+  if (totalXP >= 50000) rank = { rank: 'S', color: '#FFD700', name: 'MONARCH' };
+  else if (totalXP >= 25000) rank = { rank: 'A', color: '#f472b6', name: 'S-RANK' };
+  else if (totalXP >= 12000) rank = { rank: 'B', color: '#c084fc', name: 'ELITE' };
+  else if (totalXP >= 5000) rank = { rank: 'C', color: '#4fd1c7', name: 'VETERAN' };
+  else if (totalXP >= 1500) rank = { rank: 'D', color: '#a855f7', name: 'HUNTER' };
+
+  const langTop = Object.entries(langTotals).sort((a, b) => b[1] - a[1]);
+  return { user, repos, topRepos, cls, stats, rank, langTop };
 }
 
-function calcRank(xp) {
-  if (xp >= 50000) return { rank: 'S', color: '#FFD700', name: 'MONARCH' };
-  if (xp >= 25000) return { rank: 'A', color: '#f472b6', name: 'S-RANK' };
-  if (xp >= 12000) return { rank: 'B', color: '#c084fc', name: 'ELITE' };
-  if (xp >= 5000)  return { rank: 'C', color: '#4fd1c7', name: 'VETERAN' };
-  if (xp >= 1500)  return { rank: 'D', color: '#a855f7', name: 'HUNTER' };
-  return { rank: 'E', color: '#fc8181', name: 'NOVICE' };
+async function avatarToDataURL(url) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return url;
+    const buf = Buffer.from(await res.arrayBuffer());
+    const ct = res.headers.get('content-type') || 'image/png';
+    return 'data:' + ct + ';base64,' + buf.toString('base64');
+  } catch (_) { return url; }
 }
 
-function buildSVG(user, avatarData, cls, stats, rank) {
-  const c = { bg1:'#1c0a0a', bg2:'#0d0505', accent:'#ef4444', bright:'#fca5a5',
-    border:'#b91c1c', text:'#e5e5e5', dim:'#9ca3af' };
+async function run() {
+  console.log('Invocando ' + USERNAME + '...');
+  const data = await fetchAllData(USERNAME);
+  const avatar = await avatarToDataURL(data.user.avatar_url);
+
+  const c = { bg1:'#1c0a0a', bg2:'#0d0505', accent:'#ef4444', bright:'#fca5a5', deep:'#7f1d1d', border:'#b91c1c', text:'#e5e5e5', dim:'#9ca3af' };
   const W = 560, H = 340;
   const F = 'Segoe UI,Helvetica,Arial,sans-serif';
-  const mainLang = Object.entries(cls.langTotals).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
-  const top = (user.topRepos || []).slice(0, 3);
+  const mainLang = data.langTop[0] ? data.langTop[0][0] : 'N/A';
+  const top = (data.topRepos || []).slice(0, 3);
   const today = new Date().toLocaleDateString('pt-BR');
   const avX = W - 66, avY = 66, avR = 36;
 
   let rows = '';
   if (top.length) {
-    rows = top.map((r, i) =>
-      '<text x="32" y="' + (268 + i * 20) + '" font-family="' + F + '" font-size="13" fill="' + c.text + '">• ' +
-      esc(trunc(r.name, 32)) + ' — ' + (r.stargazers_count || 0) + ' estrelas</text>'
-    ).join('');
+    rows = top.map((r, i) => '<text x="32" y="' + (268 + i * 20) + '" font-family="' + F + '" font-size="13" fill="' + c.text + '">• ' + esc(trunc(r.name, 32)) + ' — ⭐ ' + (r.stargazers_count || 0) + '</text>').join('');
   } else {
-    rows = '<text x="32" y="268" font-family="' + F + '" font-size="13" fill="' + c.dim + '">Nenhum repositorio em destaque</text>';
+    rows = '<text x="32" y="268" font-family="' + F + '" font-size="13" fill="' + c.dim + '" font-style="italic">Nenhum repositório em destaque</text>';
   }
 
   const p = [];
@@ -144,98 +131,52 @@ function buildSVG(user, avatarData, cls, stats, rank) {
   p.push('  </defs>');
   p.push('  <rect width="' + W + '" height="' + H + '" rx="12" fill="url(#bgGrad)"/>');
   p.push('  <rect x="2" y="2" width="' + (W - 4) + '" height="' + (H - 4) + '" rx="11" fill="none" stroke="' + c.border + '" stroke-width="2"/>');
-  p.push('  <text x="24" y="52" font-family="' + F + '" font-size="24" font-weight="700" fill="' + c.accent + '">' + esc(trunc(user.name || user.login, 26)) + '</text>');
-  p.push('  <text x="24" y="86" font-family="' + F + '" font-size="13" fill="' + c.text + '">' + esc(trunc(user.company || 'Independente', 20)) + ' • ' + esc(user.bio ? trunc(user.bio.split(' ')[0], 18) : 'developer') + '</text>');
-  p.push('  <text x="24" y="112" font-family="' + F + '" font-size="13" fill="' + c.text + '">' + esc(cls.name) + ' • Rank ' + esc(rank.rank) + ' — ' + esc(rank.name) + '</text>');
-  p.push('  <image xlink:href="' + avatarData + '" x="' + (avX - avR) + '" y="' + (avY - avR) + '" width="' + (avR * 2) + '" height="' + (avR * 2) + '" clip-path="url(#avClip)" preserveAspectRatio="xMidYMid slice"/>');
+  p.push('  <text x="24" y="52" font-family="' + F + '" font-size="24" font-weight="700" fill="' + c.accent + '">' + esc(trunc(data.user.name || data.user.login, 26)) + '</text>');
+  p.push('  <text x="24" y="86" font-family="' + F + '" font-size="13" fill="' + c.text + '">🎓 ' + esc(trunc(data.user.company || 'Independente', 20)) + ' • 💼 ' + esc(data.user.bio ? trunc(data.user.bio.split(' ')[0], 18) : 'developer') + '</text>');
+  p.push('  <text x="24" y="112" font-family="' + F + '" font-size="13" fill="' + c.text + '">⚔️ ' + esc(data.cls.name) + ' • 🩸 Rank ' + esc(data.rank.rank) + ' — ' + esc(data.rank.name) + '</text>');
+  if (avatar.startsWith('data:')) {
+    p.push('  <image xlink:href="' + avatar + '" x="' + (avX - avR) + '" y="' + (avY - avR) + '" width="' + (avR * 2) + '" height="' + (avR * 2) + '" clip-path="url(#avClip)" preserveAspectRatio="xMidYMid slice"/>');
+  } else {
+    p.push('  <circle cx="' + avX + '" cy="' + avY + '" r="' + avR + '" fill="' + c.deep + '"/>');
+    p.push('  <text x="' + avX + '" y="' + (avY + 12) + '" text-anchor="middle" font-family="' + F + '" font-size="32" font-weight="700" fill="' + c.bright + '">' + (data.user.name || data.user.login).charAt(0).toUpperCase() + '</text>');
+  }
   p.push('  <circle cx="' + avX + '" cy="' + avY + '" r="' + avR + '" fill="none" stroke="' + c.border + '" stroke-width="2"/>');
   p.push('  <line x1="24" y1="138" x2="' + (W - 24) + '" y2="138" stroke="' + c.border + '" stroke-opacity="0.35"/>');
-  p.push('  <text x="24" y="166" font-family="' + F + '" font-size="13" fill="' + c.text + '">Linguagem principal: ' + esc(mainLang) + '</text>');
-  p.push('  <text x="24" y="192" font-family="' + F + '" font-size="13" fill="' + c.text + '">Nivel: ' + stats.level + ' • XP Total: ' + stats.totalXP + '</text>');
+  p.push('  <text x="24" y="166" font-family="' + F + '" font-size="13" fill="' + c.text + '">💻 Linguagem principal: <tspan font-weight="700" fill="' + c.bright + '">' + esc(mainLang) + '</tspan></text>');
+  p.push('  <text x="24" y="192" font-family="' + F + '" font-size="13" fill="' + c.text + '">🏆 Nível: <tspan font-weight="700" fill="' + c.bright + '">' + data.stats.level + '</tspan> • XP Total: <tspan font-weight="700" fill="' + c.bright + '">' + data.stats.totalXP + '</tspan></text>');
   p.push('  <rect x="24" y="204" width="' + (W - 48) + '" height="8" rx="4" fill="rgba(255,255,255,0.06)"/>');
-  p.push('  <rect x="24" y="204" width="' + (((W - 48) * stats.xpProgress) / 100).toFixed(1) + '" height="8" rx="4" fill="url(#barGrad)"/>');
-  p.push('  <text x="24" y="244" font-family="' + F + '" font-size="14" font-weight="700" fill="' + c.bright + '">Destaques:</text>');
+  p.push('  <rect x="24" y="204" width="' + (((W - 48) * data.stats.xpProgress) / 100).toFixed(1) + '" height="8" rx="4" fill="url(#barGrad)"/>');
+  p.push('  <text x="24" y="244" font-family="' + F + '" font-size="14" font-weight="700" fill="' + c.bright + '">⭐ Destaques:</text>');
   p.push('  ' + rows);
   p.push('  <line x1="24" y1="' + (H - 36) + '" x2="' + (W - 24) + '" y2="' + (H - 36) + '" stroke="' + c.border + '" stroke-opacity="0.35"/>');
-  p.push('  <text x="' + (W / 2) + '" y="' + (H - 14) + '" text-anchor="middle" font-family="' + F + '" font-size="11" fill="' + c.dim + '">Gerado em ' + today + ' • ' + stats.repos + ' repos • ' + stats.stars + ' estrelas • ' + stats.followers + ' seguidores</text>');
+  p.push('  <text x="' + (W / 2) + '" y="' + (H - 14) + '" text-anchor="middle" font-family="' + F + '" font-size="11" fill="' + c.dim + '">Gerado em ' + today + ' • ' + data.stats.repos + ' repos • ' + data.stats.stars + ' ⭐ • ' + data.stats.followers + ' seguidores</text>');
   p.push('</svg>');
-  return p.join('\n');
+  const finalSvg = p.join('\n');
+
+  // Gerar YAML para salvar
+  const lines = [
+    'guild_card:',
+    '  player:',
+    '    name: "' + (data.user.name || data.user.login) + '"',
+    '    username: "@' + data.user.login + '"',
+    '  class:',
+    '    name: "' + data.cls.name + '"',
+    '  stats:',
+    '    stars: ' + data.stats.stars,
+    '    forks: ' + data.stats.forks,
+    '    repositories: ' + data.stats.repos,
+    '    followers: ' + data.stats.followers,
+    '  xp:',
+    '    level: ' + data.stats.level,
+    '    total: "' + data.stats.totalXP + '"',
+    '  meta:',
+    '    generated_at: "' + today + '"'
+  ];
+  const finalYml = lines.join('\n');
+
+  fs.writeFileSync(OUTPUT_SVG, finalSvg, 'utf8');
+  fs.writeFileSync(OUTPUT_YML, finalYml, 'utf8');
+  console.log('SVG e YML gerados com sucesso!');
 }
 
-function buildDataYAML(data, cls, stats, rank, langTop) {
-  const user = data.user;
-  const qq = (s) => '"' + String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
-  const lines = [];
-  const push = (i, s) => lines.push(' '.repeat(i) + s);
-  const flag = (() => {
-    if (!user.location) return '🌍';
-    const m = String(user.location).match(/\b([A-Z]{2})\b/);
-    if (!m) return '🌍';
-    return m[1].replace(/./g, ch => String.fromCodePoint(127397 + ch.charCodeAt(0)));
-  })();
-  const mainLang = langTop[0] ? langTop[0][0] : 'Code';
-  const startedAt = new Date(user.created_at).toISOString().split('T')[0];
-  const startedFmt = new Date(user.created_at).toLocaleDateString('pt-BR');
-
-  push(0, 'guild_card:');
-  push(2, 'player:');
-  push(4, 'name: ' + qq(user.name || user.login));
-  push(4, 'username: ' + qq('@' + user.login));
-  push(4, 'avatar: ' + qq(user.avatar_url));
-  push(4, 'rank:');
-  push(6, 'code: ' + qq(rank.rank));
-  push(6, 'label: ' + qq(rank.name));
-  push(6, 'color: ' + qq(rank.color));
-  push(2, 'bio:');
-  push(4, 'text: |');
-  (user.bio || 'Aventureiro do codigo').split('\n').forEach(l => push(6, l));
-  push(4, 'location:');
-  push(6, 'flag: ' + qq(flag));
-  push(6, 'country: ' + qq(user.location || 'Terra Desconhecida'));
-  push(2, 'class:');
-  push(4, 'name: ' + qq(cls.name));
-  push(4, 'specialization: ' + qq(mainLang + ' Master'));
-  push(2, 'stats:');
-  push(4, 'stars: ' + stats.stars);
-  push(4, 'forks: ' + stats.forks);
-  push(4, 'repositories: ' + stats.repos);
-  push(4, 'followers: ' + stats.followers);
-  push(2, 'xp:');
-  push(4, 'level: ' + stats.level);
-  push(4, 'current: ' + stats.xpCurrent);
-  push(4, 'next_level: ' + stats.xpNeeded);
-  push(4, 'total: ' + qq(fmt(stats.totalXP)));
-  push(4, 'progress_percent: ' + Number(stats.xpProgress.toFixed(1)));
-  push(2, 'featured:');
-  const topList = (data.topRepos || []).slice(0, 3);
-  if (topList.length) {
-    topList.forEach(r => {
-      push(4, '- name: ' + qq(r.name));
-      push(6, 'stars: ' + (r.stargazers_count || 0));
-      push(6, 'url: ' + qq(r.html_url));
-    });
-  } else push(4, '[]');
-  push(2, 'meta:');
-  push(4, 'started_at: ' + qq(startedAt));
-  push(4, 'formatted: ' + qq(startedFmt));
-  return lines.join('\n') + '\n';
-}
-
-(async () => {
-  try {
-    console.log('Invocando ' + USERNAME + '...');
-    const data = await fetchUser(USERNAME);
-    const cls = detectClass(data.repos);
-    const stats = calcStats(data);
-    const rank = calcRank(stats.totalXP);
-    const langTop = Object.entries(cls.langTotals).sort((a, b) => b[1] - a[1]);
-    fs.writeFileSync(OUTPUT_YML, buildDataYAML(data, cls, stats, rank, langTop), 'utf8');
-    console.log('YAML escrito: ' + OUTPUT_YML);
-    fs.writeFileSync(OUTPUT_SVG, buildSVG(data.user, data.avatarData, cls, stats, rank), 'utf8');
-    console.log('SVG escrito: ' + OUTPUT_SVG);
-    console.log('OK - Rank ' + rank.rank + ' / Level ' + stats.level);
-  } catch (err) {
-    console.error('Erro:', err.message);
-    process.exit(1);
-  }
-})();
+run().catch(err => { console.error('Erro:', err.message); process.exit(1); });
