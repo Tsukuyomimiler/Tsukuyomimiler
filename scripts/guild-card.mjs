@@ -1,55 +1,139 @@
 import fs from 'node:fs';
+
 const USERNAME = process.env.GH_USERNAME || (process.env.GITHUB_REPOSITORY || '').split('/')[0];
 const TOKEN = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || '';
 const OUTPUT_SVG = 'guild-card.svg';
 const OUTPUT_YML = 'guild-card.yml';
+
 if (!USERNAME) { console.error('GH_USERNAME nao definido'); process.exit(1); }
-const HEADERS = TOKEN ? { Authorization: 'Bearer ' + TOKEN, Accept: 'application/vnd.github+json' } : { Accept: 'application/vnd.github+json' };
-const fmt = (n) => { n = n || 0; if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M'; if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K'; return String(n); };
-const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+
+const HEADERS = TOKEN
+  ? { Authorization: 'Bearer ' + TOKEN, Accept: 'application/vnd.github+json' }
+  : { Accept: 'application/vnd.github+json' };
+
+const fmt = (n) => {
+  n = n || 0;
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return String(n);
+};
+
+const esc = (s) => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+
 const trunc = (s, n) => s && s.length > n ? s.slice(0, n - 1) + '...' : (s || '');
-async function fetchGH(url) { const res = await fetch(url, { headers: HEADERS }); if (!res.ok) { if (res.status === 404) return null; throw new Error('GitHub ' + res.status); } return res.json(); }
-async function avatarToDataURL(url) { try { const res = await fetch(url); if (!res.ok) return url; const buf = Buffer.from(await res.arrayBuffer()); const ct = res.headers.get('content-type') || 'image/png'; return 'data:' + ct + ';base64,' + buf.toString('base64'); } catch (_) { return url; } }
+
+async function fetchGH(url) {
+  const res = await fetch(url, { headers: HEADERS });
+  if (!res.ok) {
+    if (res.status === 404) return null;
+    throw new Error('GitHub ' + res.status);
+  }
+  return res.json();
+}
+
+async function avatarToDataURL(url) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return url;
+    const buf = Buffer.from(await res.arrayBuffer());
+    const ct = res.headers.get('content-type') || 'image/png';
+    return 'data:' + ct + ';base64,' + buf.toString('base64');
+  } catch (_) { return url; }
+}
+
 async function fetchUser(username) {
   const user = await fetchGH('https://api.github.com/users/' + username);
   if (!user) throw new Error('Usuario nao encontrado');
   const repos = await fetchGH('https://api.github.com/users/' + username + '/repos?per_page=100&sort=updated') || [];
   const stars = repos.reduce((a, r) => a + (r.stargazers_count || 0), 0);
   const forks = repos.reduce((a, r) => a + (r.forks_count || 0), 0);
-  const topRepos = repos.filter(r => !r.fork).sort((a, b) => (b.stargazers_count || 0) - (a.stargazers_count || 0)).slice(0, 3);
+  const topRepos = repos.filter(r => !r.fork)
+    .sort((a, b) => (b.stargazers_count || 0) - (a.stargazers_count || 0)).slice(0, 3);
   const avatarData = await avatarToDataURL(user.avatar_url);
-  return { user, repos, topRepos, avatarData, total_stars: stars, total_forks: forks, public_repos_count: user.public_repos || 0 };
+  return { user, repos, topRepos, avatarData,
+    total_stars: stars, total_forks: forks, public_repos_count: user.public_repos || 0 };
 }
+
 function detectClass(repos) {
-  const groups = { frontend: ['JavaScript','TypeScript','HTML','CSS','Vue','Svelte','SCSS','Less','Astro'], backend: ['Python','Java','Go','Rust','Ruby','PHP','C#','Elixir','Scala','Kotlin','Perl','Clojure'], mobile: ['Swift','Kotlin','Dart','Objective-C'], data: ['Jupyter Notebook','R','MATLAB','Julia'], devops: ['Shell','Dockerfile','HCL','Makefile','PowerShell','Nix'], systems: ['C','C++','Assembly','Zig','CUDA'] };
+  const groups = {
+    frontend: ['JavaScript','TypeScript','HTML','CSS','Vue','Svelte','SCSS','Less','Astro'],
+    backend:  ['Python','Java','Go','Rust','Ruby','PHP','C#','Elixir','Scala','Kotlin','Perl','Clojure'],
+    mobile:   ['Swift','Kotlin','Dart','Objective-C'],
+    data:     ['Jupyter Notebook','R','MATLAB','Julia'],
+    devops:   ['Shell','Dockerfile','HCL','Makefile','PowerShell','Nix'],
+    systems:  ['C','C++','Assembly','Zig','CUDA']
+  };
   const counts = { frontend:0, backend:0, mobile:0, data:0, devops:0, systems:0 };
   const langTotals = {};
-  repos.forEach(r => { if (!r.language) return; langTotals[r.language] = (langTotals[r.language] || 0) + 1; for (const [k, list] of Object.entries(groups)) if (list.includes(r.language)) counts[k]++; });
+  repos.forEach(r => {
+    if (!r.language) return;
+    langTotals[r.language] = (langTotals[r.language] || 0) + 1;
+    for (const [k, list] of Object.entries(groups)) if (list.includes(r.language)) counts[k]++;
+  });
   const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
   const active = sorted.filter(([, v]) => v > 0).length;
   let key = 'adventurer';
-  if (active >= 3) { if (counts.frontend > 0 && counts.backend > 0 && counts.frontend >= counts.backend * 0.6) key = 'fullstack'; else key = sorted[0][0]; } else if (active >= 1) key = sorted[0][0];
-  const map = { frontend: { name: 'FRONTEND WARRIOR' }, backend: { name: 'BACKEND MAGE' }, fullstack: { name: 'FULLSTACK RANGER' }, mobile: { name: 'MOBILE ASSASSIN' }, data: { name: 'DATA ALCHEMIST' }, devops: { name: 'DEVOPS CLERIC' }, systems: { name: 'SYSTEMS BERSERKER' }, adventurer:{ name: 'CODE ADVENTURER' } };
+  if (active >= 3) {
+    if (counts.frontend > 0 && counts.backend > 0 && counts.frontend >= counts.backend * 0.6) key = 'fullstack';
+    else key = sorted[0][0];
+  } else if (active >= 1) key = sorted[0][0];
+  const map = {
+    frontend:  { name: 'FRONTEND WARRIOR' },
+    backend:   { name: 'BACKEND MAGE' },
+    fullstack: { name: 'FULLSTACK RANGER' },
+    mobile:    { name: 'MOBILE ASSASSIN' },
+    data:      { name: 'DATA ALCHEMIST' },
+    devops:    { name: 'DEVOPS CLERIC' },
+    systems:   { name: 'SYSTEMS BERSERKER' },
+    adventurer:{ name: 'CODE ADVENTURER' }
+  };
   return { key, ...map[key], langTotals };
 }
+
 function calcStats(u) {
-  const totalXP = (u.total_stars || 0) * 15 + (u.total_forks || 0) * 8 + (u.public_repos_count || 0) * 30 + (u.followers || 0) * 6 + Math.floor(((Date.now() - new Date(u.created_at)) / (365.25 * 24 * 3600 * 1000)) * 400);
+  const totalXP = (u.total_stars || 0) * 15 + (u.total_forks || 0) * 8 +
+                  (u.public_repos_count || 0) * 30 + (u.followers || 0) * 6 +
+                  Math.floor(((Date.now() - new Date(u.created_at)) / (365.25 * 24 * 3600 * 1000)) * 400);
   const XP_PER_LEVEL = 2000;
   const level = Math.floor(totalXP / XP_PER_LEVEL) + 1;
   const xpCurrent = totalXP % XP_PER_LEVEL;
-  return { stars: u.total_stars || 0, forks: u.total_forks || 0, repos: u.public_repos_count || 0, followers: u.followers || 0, totalXP, level, xpCurrent, xpNeeded: XP_PER_LEVEL, xpProgress: Math.min((xpCurrent / XP_PER_LEVEL) * 100, 100) };
+  return { stars: u.total_stars || 0, forks: u.total_forks || 0,
+    repos: u.public_repos_count || 0, followers: u.followers || 0,
+    totalXP, level, xpCurrent, xpNeeded: XP_PER_LEVEL,
+    xpProgress: Math.min((xpCurrent / XP_PER_LEVEL) * 100, 100) };
 }
-function calcRank(xp) { if (xp >= 50000) return { rank: 'S', color: '#FFD700', name: 'MONARCH' }; if (xp >= 25000) return { rank: 'A', color: '#f472b6', name: 'S-RANK' }; if (xp >= 12000) return { rank: 'B', color: '#c084fc', name: 'ELITE' }; if (xp >= 5000) return { rank: 'C', color: '#4fd1c7', name: 'VETERAN' }; if (xp >= 1500) return { rank: 'D', color: '#a855f7', name: 'HUNTER' }; return { rank: 'E', color: '#fc8181', name: 'NOVICE' }; }
+
+function calcRank(xp) {
+  if (xp >= 50000) return { rank: 'S', color: '#FFD700', name: 'MONARCH' };
+  if (xp >= 25000) return { rank: 'A', color: '#f472b6', name: 'S-RANK' };
+  if (xp >= 12000) return { rank: 'B', color: '#c084fc', name: 'ELITE' };
+  if (xp >= 5000)  return { rank: 'C', color: '#4fd1c7', name: 'VETERAN' };
+  if (xp >= 1500)  return { rank: 'D', color: '#a855f7', name: 'HUNTER' };
+  return { rank: 'E', color: '#fc8181', name: 'NOVICE' };
+}
+
 function buildSVG(user, avatarData, cls, stats, rank) {
-  const c = { bg1:'#1c0a0a', bg2:'#0d0505', accent:'#ef4444', bright:'#fca5a5', border:'#b91c1c', text:'#e5e5e5', dim:'#9ca3af' };
+  const c = { bg1:'#1c0a0a', bg2:'#0d0505', accent:'#ef4444', bright:'#fca5a5',
+    border:'#b91c1c', text:'#e5e5e5', dim:'#9ca3af' };
   const W = 560, H = 340;
   const F = 'Segoe UI,Helvetica,Arial,sans-serif';
   const mainLang = Object.entries(cls.langTotals).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
   const top = (user.topRepos || []).slice(0, 3);
   const today = new Date().toLocaleDateString('pt-BR');
   const avX = W - 66, avY = 66, avR = 36;
+
   let rows = '';
-  if (top.length) { rows = top.map((r, i) => '<text x="32" y="' + (268 + i * 20) + '" font-family="' + F + '" font-size="13" fill="' + c.text + '">• ' + esc(trunc(r.name, 32)) + ' — ' + (r.stargazers_count || 0) + ' estrelas</text>').join(''); } else { rows = '<text x="32" y="268" font-family="' + F + '" font-size="13" fill="' + c.dim + '">Nenhum repositorio em destaque</text>'; }
+  if (top.length) {
+    rows = top.map((r, i) =>
+      '<text x="32" y="' + (268 + i * 20) + '" font-family="' + F + '" font-size="13" fill="' + c.text + '">• ' +
+      esc(trunc(r.name, 32)) + ' — ' + (r.stargazers_count || 0) + ' estrelas</text>'
+    ).join('');
+  } else {
+    rows = '<text x="32" y="268" font-family="' + F + '" font-size="13" fill="' + c.dim + '">Nenhum repositorio em destaque</text>';
+  }
+
   const p = [];
   p.push('<?xml version="1.0" encoding="UTF-8"?>');
   p.push('<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">');
@@ -77,15 +161,22 @@ function buildSVG(user, avatarData, cls, stats, rank) {
   p.push('</svg>');
   return p.join('\n');
 }
+
 function buildDataYAML(data, cls, stats, rank, langTop) {
   const user = data.user;
   const qq = (s) => '"' + String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
   const lines = [];
   const push = (i, s) => lines.push(' '.repeat(i) + s);
-  const flag = (() => { if (!user.location) return '🌍'; const m = String(user.location).match(/\b([A-Z]{2})\b/); if (!m) return '🌍'; return m[1].replace(/./g, ch => String.fromCodePoint(127397 + ch.charCodeAt(0))); })();
+  const flag = (() => {
+    if (!user.location) return '🌍';
+    const m = String(user.location).match(/\b([A-Z]{2})\b/);
+    if (!m) return '🌍';
+    return m[1].replace(/./g, ch => String.fromCodePoint(127397 + ch.charCodeAt(0)));
+  })();
   const mainLang = langTop[0] ? langTop[0][0] : 'Code';
   const startedAt = new Date(user.created_at).toISOString().split('T')[0];
   const startedFmt = new Date(user.created_at).toLocaleDateString('pt-BR');
+
   push(0, 'guild_card:');
   push(2, 'player:');
   push(4, 'name: ' + qq(user.name || user.login));
@@ -117,10 +208,34 @@ function buildDataYAML(data, cls, stats, rank, langTop) {
   push(4, 'progress_percent: ' + Number(stats.xpProgress.toFixed(1)));
   push(2, 'featured:');
   const topList = (data.topRepos || []).slice(0, 3);
-  if (topList.length) { topList.forEach(r => { push(4, '- name: ' + qq(r.name)); push(6, 'stars: ' + (r.stargazers_count || 0)); push(6, 'url: ' + qq(r.html_url)); }); } else push(4, '[]');
+  if (topList.length) {
+    topList.forEach(r => {
+      push(4, '- name: ' + qq(r.name));
+      push(6, 'stars: ' + (r.stargazers_count || 0));
+      push(6, 'url: ' + qq(r.html_url));
+    });
+  } else push(4, '[]');
   push(2, 'meta:');
   push(4, 'started_at: ' + qq(startedAt));
   push(4, 'formatted: ' + qq(startedFmt));
   return lines.join('\n') + '\n';
 }
-(async () => { try { console.log('Invocando ' + USERNAME + '...'); const data = await fetchUser(USERNAME); const cls = detectClass(data.repos); const stats = calcStats(data); const rank = calcRank(stats.totalXP); const langTop = Object.entries(cls.langTotals).sort((a, b) => b[1] - a[1]); fs.writeFileSync(OUTPUT_YML, buildDataYAML(data, cls, stats, rank, langTop), 'utf8'); console.log('YAML escrito: ' + OUTPUT_YML); fs.writeFileSync(OUTPUT_SVG, buildSVG(data.user, data.avatarData, cls, stats, rank), 'utf8'); console.log('SVG escrito: ' + OUTPUT_SVG); console.log('OK - Rank ' + rank.rank + ' / Level ' + stats.level); } catch (err) { console.error('Erro:', err.message); process.exit(1); } })();
+
+(async () => {
+  try {
+    console.log('Invocando ' + USERNAME + '...');
+    const data = await fetchUser(USERNAME);
+    const cls = detectClass(data.repos);
+    const stats = calcStats(data);
+    const rank = calcRank(stats.totalXP);
+    const langTop = Object.entries(cls.langTotals).sort((a, b) => b[1] - a[1]);
+    fs.writeFileSync(OUTPUT_YML, buildDataYAML(data, cls, stats, rank, langTop), 'utf8');
+    console.log('YAML escrito: ' + OUTPUT_YML);
+    fs.writeFileSync(OUTPUT_SVG, buildSVG(data.user, data.avatarData, cls, stats, rank), 'utf8');
+    console.log('SVG escrito: ' + OUTPUT_SVG);
+    console.log('OK - Rank ' + rank.rank + ' / Level ' + stats.level);
+  } catch (err) {
+    console.error('Erro:', err.message);
+    process.exit(1);
+  }
+})();
