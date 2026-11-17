@@ -167,7 +167,8 @@ function buildSVG(user, avatarData, cls, stats, rank) {
   p.push('  <line x1="24" y1="' + (H - 36) + '" x2="' + (W - 24) + '" y2="' + (H - 36) + '" stroke="' + c.border + '" stroke-opacity="0.35"/>');
   p.push('  <text x="' + (W / 2) + '" y="' + (H - 14) + '" text-anchor="middle" font-family="' + F + '" font-size="11" fill="' + c.dim + '">Gerado em ' + today + ' • ' + stats.repos + ' repos • ' + stats.stars + ' estrelas • ' + stats.followers + ' seguidores</text>');
   p.push('</svg>');
-  return p.join('\n');
+  return p.join('
+');
 }
 
 function buildDataYAML(data, cls, stats, rank, langTop) {
